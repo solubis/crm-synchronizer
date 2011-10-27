@@ -1,0 +1,28 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>
+			Proxy Test Runner
+		</title>
+		<link href="jasmine.css" rel="stylesheet" type="text/css">
+	</head>
+	<body>
+		<script type="text/javascript" src="sencha-touch-debug.js"></script>
+		<script type="text/javascript" src="aop.js"></script>
+		<script type="text/javascript" src="synch.js"></script>
+		<script type="text/javascript" src="ddl.js"></script>
+		<script type="text/javascript" src="jasmine.js"></script>
+		<script type="text/javascript" src="jasmine-html.js"></script>
+		<script type="text/javascript" src="proxy.js"></script>
+		<script type="text/javascript" src="websqlproxy.js"></script>
+		<script type="text/javascript" src="models.js"></script>
+		<script type="text/javascript" src="test-synch.js"></script>
+		<script type="text/javascript" src="test-websqlproxy.js"></script>
+		<script type="text/javascript" src="test-proxy.js"></script>		
+		<script type="text/javascript">
+			jasmine.getEnv().addReporter(new jasmine.TrivialReporter());
+			jasmine.getEnv().execute();
+		</script>
+	</body>
+</html>
