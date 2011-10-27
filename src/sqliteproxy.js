@@ -36,13 +36,15 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
      */
     db: undefined,
 
+	idProperty: 'OBJECT_ID',
+
     constructor: function(config) {
         var me = this;
-        console.log("constructor");
+
         Ext.data.Proxy.superclass.constructor.call(this, config);
 
         me.connect();
-        me.createTable();
+        //me.createTable();
     },
 
     connect: function() {
@@ -60,7 +62,7 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
         id,
         record,
         i,
-        tbl_Id = me.getReader().idProperty || 'ID';
+        tbl_Id = me.getModel().idProperty || me.idProperty;
         operation.setStarted();
 
         for (i = 0; i < length; i++) {
@@ -79,13 +81,14 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
     //inherit docs
     update: function(operation, callback, scope) {
         console.log("update");
+
         var me = this;
         var records = this.getTableFields(operation.records),
         length = records.length,
         record,
         id,
         i,
-        tbl_Id = me.getReader().idProperty || 'ID';
+        tbl_Id = me.getModel().idProperty || me.idProperty;
 
         operation.setStarted();
 
@@ -107,7 +110,7 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
 
         var me = this;
 
-        var sql = me.dbQuery || 'SELECT * FROM ' + thisProxy.dbTable + '';
+        var sql = me.dbQuery || 'SELECT * FROM ' + me.dbTable + '';
 
         var params,
         onSucess,
@@ -128,11 +131,12 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
     //inherit docs
     destroy: function(operation, callback, scope) {
         console.log("destroy");
+
         var me = this;
         var records = operation.records,
         length = records.length,
         i,
-        tbl_Id = me.getReader().idProperty || 'ID';
+        tbl_Id = me.getModel().idProperty || me.idProperty;
 
         for (i = 0; i < length; i++) {
             this.removeRecord(records[i].data[tbl_Id], me.dbTable, tbl_Id, false);
@@ -265,7 +269,7 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
     },
 
     applyData: function(data, operation, callback, scope) {
-        var thisProxy = this;
+        var me = this;
         operation.resultSet = new Ext.data.ResultSet({
             records: data,
             total: data.length,
@@ -276,21 +280,21 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
         operation.setCompleted();
         //finish with callback
         if (typeof callback == "function") {
-            callback.call(scope || thisProxy, operation);
+            callback.call(scope || me, operation);
         }
     },
 
     applyDataToModel: function(tx, results, operation, callback, scope) {
-        var thisProxy = this;
-        var records = thisProxy.parseData(tx, results);
+        var me = this;
+        var records = me.parseData(tx, results);
         var storedatas = [];
         if (results.rows && records.length) {
             for (i = 0; i < results.rows.length; i++) {
-                var storedata = new thisProxy.model(records[i]);
+                var storedata = new me.model(records[i]);
                 storedatas.push(storedata);
             }
         }
-        thisProxy.applyData(storedatas, operation, callback, scope);
+        me.applyData(storedatas, operation, callback, scope);
     },
 
     /**
@@ -324,6 +328,10 @@ Ext.data.ProxyMgr.registerType("sqlitestorage", Ext.extend(Ext.data.Proxy, {
         onError = function(tx, err) {
             me.throwDbError(tx, err);
         };
+
+		fields.push(primarykey);
+		placeholders.push('?');
+		values.push(me.getGUID());
 
         //extract data to be inserted
         for (var i in rawData) {

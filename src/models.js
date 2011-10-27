@@ -45,13 +45,11 @@ Ext.regModel('PRODUCT', {
 
     proxy: {
         type: 'sqlitestorage',
-        dbName: 'acrm',
+        dbName: 'test',
         dbTable: 'PRODUCT',
         dbVersion: '1.00',
 		dbDescription: 'Adaptive CRM Database'
     },
-
-    idProperty: 'OBJECT_ID',
 
     fields: [
     {
