@@ -1,13 +1,13 @@
 Ext.ns('acrm.data');
 
-acrm.data.Proxy = function() {
+acrm.data.Ajax = function() {
 
     this.loadingIsComplete = false;
-	this.serverURL = 'http://192.168.1.6/';
+	this.serverURL = 'http://10.46.1.5:804/';
 
 };
 
-acrm.data.Proxy.prototype = {
+acrm.data.Ajax.prototype = {
 
     request: function(command, callback) {
         var that = this;

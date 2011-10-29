@@ -50,7 +50,7 @@ acrm.data.Database = {
         var that = this;
 
         this.isComplete = false;
-        this.proxy = new acrm.data.Proxy();
+        this.proxy = new acrm.data.Ajax();
         this.proxy.request('product.json',
         function(result) {
             var insert = result.INSERT[0],
@@ -74,6 +74,11 @@ acrm.data.Database = {
 
         });
     },
+
+	getSchema: function() {
+		
+		
+	},
 
     clearTable: function(tableName) {
         var that = this;

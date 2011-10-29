@@ -1,27 +1,27 @@
-describe("Proxy",
+describe("Ajax",
 function() {
-    var proxy;
+    var ajax;
 
     beforeEach(function() {
-        proxy = new acrm.data.Proxy();
+        ajax = new acrm.data.Ajax();
     });
 
     xit("Test Sencha Ajax Request",
     function() {
         var data;
-        proxy.request('product.json',
+        ajax.request('data.js',
         function(result) {
             data = result;
         });
 
         waitsFor(function() {
-            return proxy.loadingIsComplete;
+            return ajax.loadingIsComplete;
         },
         "loading results", 1000);
 
         runs(function() {
-            expect(data.INSERT).toBeDefined();
-            expect(data.INSERT[0].values.length).toEqual(5);
+            expect(data.rows).toBeDefined();
+            expect(data.rows[0].id).toEqual('A1');
         });
     });
 
