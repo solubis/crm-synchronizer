@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>src/sqliteproxy.js</string>
+	<string>test/test-sqliteproxy.js</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -50,98 +50,114 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>6</integer>
+				<integer>12</integer>
 				<key>line</key>
-				<integer>6498</integer>
+				<integer>5848</integer>
 			</dict>
 			<key>columnSelection</key>
 			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>6531</integer>
+			<integer>6027</integer>
 			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>4</integer>
-				<key>line</key>
-				<integer>6484</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>6</integer>
-				<key>line</key>
-				<integer>6498</integer>
-			</dict>
-		</dict>
-		<key>src/delete-websqlproxy.js</key>
-		<dict>
-			<key>caret</key>
 			<dict>
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>228</integer>
+				<integer>5848</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>12</integer>
+				<key>line</key>
+				<integer>5848</integer>
+			</dict>
+		</dict>
+		<key>src/models.js</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>1</integer>
+				<key>line</key>
+				<integer>2</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>221</integer>
+			<integer>0</integer>
 		</dict>
 		<key>src/sqliteproxy.js</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>46</integer>
+				<integer>28</integer>
 				<key>line</key>
-				<integer>379</integer>
+				<integer>440</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>338</integer>
+			<integer>404</integer>
 		</dict>
 		<key>src/synch.js</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>3</integer>
+				<integer>6</integer>
 				<key>line</key>
-				<integer>80</integer>
+				<integer>101</integer>
 			</dict>
+			<key>columnSelection</key>
+			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>55</integer>
+			<integer>67</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>4</integer>
+				<key>line</key>
+				<integer>92</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>6</integer>
+				<key>line</key>
+				<integer>101</integer>
+			</dict>
 		</dict>
 		<key>test/test-sqliteproxy.js</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>40</integer>
+				<integer>2</integer>
 				<key>line</key>
-				<integer>51</integer>
+				<integer>132</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>26</integer>
+			<integer>91</integer>
 		</dict>
 	</dict>
 	<key>openDocuments</key>
 	<array>
 		<string>test/test-sqliteproxy.js</string>
 		<string>src/sqliteproxy.js</string>
-		<string>src/delete-websqlproxy.js</string>
+		<string>src/models.js</string>
 		<string>lib/sencha-touch-debug.js</string>
 	</array>
 	<key>showFileHierarchyDrawer</key>
 	<true/>
 	<key>windowFrame</key>
-	<string>{{0, 62}, {997, 716}}</string>
+	<string>{{0, 62}, {991, 716}}</string>
 </dict>
 </plist>

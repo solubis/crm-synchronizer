@@ -1,6 +1,14 @@
 
-
 Ext.regModel('PRODUCT', {
+		
+	idProperty: 'OBJECT_ID',
+	
+	proxy: new acrm.data.Proxy({
+		name: 'proxy',
+		dbName: 'acrm',
+		dbVersion: '1.00',
+		dbDescription: 'Adaptive CRM Database'
+	}),
 
     fields: [
     {

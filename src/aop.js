@@ -1,3 +1,11 @@
+/**
+*    aop.js	
+*    
+*    Created by Jerzy Blaszczyk on 2011-10-30.
+*    Copyright 2011 Client and Friends. All rights reserved.
+*/
+
+
 InvalidAspect = new Error("Missing a valid aspect. Aspect is not a function.");
 InvalidObject = new Error("Missing valid object or an array of valid objects.");
 InvalidMethod = new Error("Missing valid method to apply aspect on.");
@@ -103,5 +111,22 @@ var AOP = {
         }
 
         return true;
-    }
+    },
+
+	object: function(object) {
+
+	    for (i in object) {
+	        var member = object[i];
+	        if (typeof member === 'function') {
+	            AOP.addBefore(function() {
+	                var obj = object.name || object,
+	                method = i;
+	                return function() {
+	                    console.log(obj + ' -> ' + method)
+	                }
+	            } (),
+	            object, i);
+	        }
+	    }
+	}
 }

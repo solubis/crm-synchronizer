@@ -1,33 +1,42 @@
 describe("Web SQL Proxy", function() {
 
-	it("Test SQL Proxy", function() {
+	var isCompleted = false,
+		result, store, numberOfRecords = 5,
+		timeout = 100;
 
-		var isCompleted = false;
+	var dbRequestCompletion = function() {
+		return isCompleted;
+	};
 
-		// Create Proxy
-		var proxy = new acrm.data.Proxy({
-			dbName: 'acrm',
-			dbTable: 'PRODUCT',
-			dbVersion: '1.00',
-			dbDescription: 'Adaptive CRM Database'
-		});
-		
-		proxy.on('beforesync', function() {
-			isCompleted = false;
-		});
+	var dbQueryCompletion = function() {
+		return result != undefined;
+	};
 
-		proxy.on('aftersync', function() {
-			isCompleted = true;
-		});
+	var onSQLSuccess = function(rs) {
+		result = rs;
+		isCompleted = true;
+	};
 
-		// Create database (if exists this does nothing except errors on log)
-		// proxy.createDatabase();
-		// Clear tables
-		proxy.truncate('PRODUCT');
-		proxy.truncate('CHANGE_TRACKING');
+	var proxy = new acrm.data.Proxy({
+		name: 'proxy',
+		dbName: 'acrm',
+		dbVersion: '1.00',
+		dbDescription: 'Adaptive CRM Database'
+	});
 
-		// Create the Data Store
-		var store = new Ext.data.Store({
+	//AOP.object(proxy);
+
+	proxy.on('aftersync', function() {
+		isCompleted = true;
+	});
+
+	it("Initialize Database", function() {
+		proxy.initDatabase();
+	});
+
+	it("Create DataStore", function() {
+		store = new Ext.data.Store({
+			name: 'store',
 			proxy: proxy,
 			model: 'PRODUCT',
 			sorters: [{
@@ -36,11 +45,63 @@ describe("Web SQL Proxy", function() {
 			}]
 		});
 
-		// Load store
-		store.load();
+		//AOP.object(store);
 
-		// Create records
-		for (var i = 0; i < 5; i++) {
+		expect(store.getProxy().getTableName()).toEqual('PRODUCT');
+		expect(store.getProxy().getIdProperty()).toEqual('OBJECT_ID');
+
+		store.on('beforeload', function() {
+			isCompleted = false;
+		});
+
+		store.on('beforesync', function() {
+			isCompleted = false;      
+		});
+	});
+
+	it("Load DataStore", function() {
+		runs(function() {
+			store.load(onSQLSuccess)
+		});
+
+		waitsFor(dbRequestCompletion, "end of load", timeout);
+
+		runs(function() {
+			expect(store.getCount()).toBeGreaterThan(0)
+		});
+	});
+
+	it("Truncate Tables", function() {
+		proxy.truncate('PRODUCT');
+		proxy.truncate('CHANGE_TRACKING');
+
+		runs(function() {
+			result = undefined;
+			proxy.getTableSize('PRODUCT', onSQLSuccess);
+		});
+
+		waitsFor(dbQueryCompletion, "count rows in table", timeout);
+
+		runs(function() {
+			expect(result).toEqual(0);
+		});
+	});
+
+	it("Load DataStore", function() {
+		runs(function() {
+			store.load(onSQLSuccess)
+		});
+
+		waitsFor(dbRequestCompletion, "end of load", timeout);
+
+		runs(function() {
+			expect(store.getCount()).toEqual(0);
+		});
+	});
+
+	it("Create records", function() {
+		expect(store.getCount()).toEqual(0);
+		for (var i = 0; i < numberOfRecords; i++) {
 
 			var p = Ext.ModelMgr.create({
 				NAME: 'Nazwa',
@@ -51,15 +112,17 @@ describe("Web SQL Proxy", function() {
 
 			store.add(p);
 		};
+		expect(store.getCount()).toEqual(numberOfRecords);
+	});
 
+	it("Save records", function() {
+		expect(store.getCount()).toEqual(numberOfRecords);
 		// Save records to database
+		runs(function() {
+			store.sync();
+		});
 
-		store.sync();
-
-		waitsFor(function() {
-			return isCompleted;
-		},
-		"end of sync", 1000);
+		waitsFor(dbRequestCompletion, "end of sync", timeout * numberOfRecords / 5);
 
 		runs(function() {
 			store.each(function(record) {
@@ -69,45 +132,70 @@ describe("Web SQL Proxy", function() {
 		});
 
 		runs(function() {
-			proxy.getTableSize('PRODUCT')
+			result = undefined;
+			proxy.getTableSize('PRODUCT', onSQLSuccess);
 		});
 
-		waitsFor(function() {
-			return proxy.count;
-		},
-		"count rows in table", 1000);
+		waitsFor(dbQueryCompletion, "count rows in table", timeout);
 
 		runs(function() {
-			expect(proxy.count).toEqual(5);
+			expect(result).toEqual(store.getCount());
 		});
+	});
+
+	it("Delete records", function() {
 
 		runs(function() {
-			store.each(function(record) {
-				store.remove(record);
-			});
-		})
-
-		runs(function() {
+			store.removeAt(0);
+			store.removeAt(1);
 			store.sync();
 		});
 
-		waitsFor(function() {
-			return isCompleted;
-		},
-		"end of sync", 1000);
+		waitsFor(dbRequestCompletion, "end of sync", timeout);
 
 		runs(function() {
-			proxy.getTableSize('PRODUCT')
+			result = undefined;
+			proxy.getTableSize('PRODUCT', onSQLSuccess);
 		});
 
-		waitsFor(function() {
-			return proxy.count != undefined;
-		},
-		"count rows in table", 1000);
+		waitsFor(dbQueryCompletion, "count rows in table", timeout);
 
 		runs(function() {
-			expect(proxy.count).toEqual(0);
+			expect(result).toEqual(numberOfRecords - 2);
 		});
 
 	});
+
+	it("Update records", function() {
+		
+		var id1, id2;
+
+		runs(function() {
+			var r1 = store.getAt(0);
+			var r2 = store.getAt(1);
+			id1 = r1.get('OBJECT_ID');
+			id2 = r2.getId();
+			r1.set('NAME', 'NowaNazwa');
+			r2.set('NAME', 'NowaNazwa');
+			r1.save();
+			r2.save();
+		});
+
+		waitsFor(dbRequestCompletion, "end of sync", timeout);
+
+		runs(function() {
+			store.load(onSQLSuccess);
+		});
+
+		waitsFor(dbRequestCompletion, "and of load", timeout);
+
+		runs(function() {
+			var r1 = store.getById(id1);
+			var r2 = store.getById(id2);
+			expect(r1.get('NAME')).toEqual('NowaNazwa');
+			expect(r2.get('NAME')).toEqual('NowaNazwa');
+		});
+
+	});
+
 });
