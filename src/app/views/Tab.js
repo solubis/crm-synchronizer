@@ -25,17 +25,13 @@ app.views.Tab = Ext.extend(Ext.Panel, {
 
     initComponent: function() {
 
-        this.controller = new app.controllers.Controller({
-            name: 'Controller'
-        });
+        this.controller = new app.controllers.Controller();
 
         AOP.object(this.controller);
 
         this.controller.setView(this);
 
-        this.listPanel = new app.views.ListPanel({
-            name: 'ListPanel'
-        });
+        this.listPanel = new app.views.ListPanel();
 
         AOP.object(this.listPanel);
 
