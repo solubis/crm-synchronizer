@@ -95,11 +95,11 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 	//inherit docs
 	read: function(operation, callback, scope) {
-		
+
 		if (operation.id) {
 			throw 'Reading single record is not implemented';
 		}
-		
+
 		var me = this;
 
 		var sql = me.dbQuery || 'SELECT * FROM ' + me.getTableName() + '',
@@ -119,7 +119,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	runOperation: function(operation, callback, scope) {
 		var me = this;
 
-		var records = me.getTableFields(operation.records),
+		var records = me.getFields(operation.records),
 			length = records.length,
 			count = length,
 			id, record, i, idProperty = me.getIdProperty(),
@@ -325,7 +325,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	 * which is not table field name, it will break create and update functionalitites.
 	 * This looks for field property "isTableField"
 	 */
-	getTableFields: function(records) {
+	getFields: function(records) {
 		var me = this;
 		var newrecords = [],
 			removedField = [],

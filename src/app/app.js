@@ -36,22 +36,5 @@ Ext.regApplication({
 
     log: function(message) {
         if (this.logging) console.log(message);
-    },
-
-    aop: function(object) {
-
-        for (i in object) {
-            var member = object[i];
-            if (typeof member === 'function') {
-                AOP.addBefore(function() {
-                    var obj = object.name,
-                    method = i;
-                    return function() {
-                        app.log(obj + ' -> ' + method)
-                    }
-                } (),
-                object, i);
-            }
-        }
     }
 });

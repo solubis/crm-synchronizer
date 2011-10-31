@@ -39,7 +39,7 @@ app.controllers.Controller = Ext.extend(Ext.Controller, {
 
         if (!this.view.FormPanel) {
             this.view.FormPanel = new app.views.FormPanel({name: 'FormPanel'});
-			app.aop(this.view.FormPanel);
+			AOP.object(this.view.FormPanel);
         }
 
         this.view.FormPanel.updateWithRecord(record);

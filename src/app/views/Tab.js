@@ -29,7 +29,7 @@ app.views.Tab = Ext.extend(Ext.Panel, {
             name: 'Controller'
         });
 
-        app.aop(this.controller);
+        AOP.object(this.controller);
 
         this.controller.setView(this);
 
@@ -37,7 +37,7 @@ app.views.Tab = Ext.extend(Ext.Panel, {
             name: 'ListPanel'
         });
 
-        app.aop(this.listPanel);
+        AOP.object(this.listPanel);
 
         this.items = [this.listPanel];
 

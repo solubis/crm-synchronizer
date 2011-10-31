@@ -1,3 +1,10 @@
+/**
+*    synch.js	
+*    
+*    Created by Jerzy Blaszczyk on 2011-10-31.
+*    Copyright 2011 Client and Friends. All rights reserved.
+*/
+
 Ext.ns('acrm.data');
 
 acrm.data.Database = {

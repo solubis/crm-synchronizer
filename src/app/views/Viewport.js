@@ -37,8 +37,8 @@ app.views.Viewport = Ext.extend(Ext.TabPanel, {
             name: 'SecondTab'
         });
 
-        app.aop(app.views.firstTab);
-        app.aop(app.views.secondTab);
+        AOP.object(app.views.firstTab);
+        AOP.object(app.views.secondTab);
 
         this.items = [app.views.firstTab, app.views.secondTab];
 

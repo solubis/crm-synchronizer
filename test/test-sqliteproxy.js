@@ -1,7 +1,6 @@
 describe("Web SQL Proxy", function() {
 
-	var isCompleted = false,
-		result, store, numberOfRecords = 5,
+	var isCompleted, proxy, result, store, numberOfRecords = 5,
 		timeout = 100;
 
 	var dbRequestCompletion = function() {
@@ -17,15 +16,9 @@ describe("Web SQL Proxy", function() {
 		isCompleted = true;
 	};
 
-	var proxy = new acrm.data.Proxy({
-		name: 'proxy',
-		dbName: 'acrm',
-		dbVersion: '1.00',
-		dbDescription: 'Adaptive CRM Database'
-	});
+	proxy = acrm.database.getProxy();
 
 	//AOP.object(proxy);
-
 	proxy.on('aftersync', function() {
 		isCompleted = true;
 	});
@@ -35,18 +28,9 @@ describe("Web SQL Proxy", function() {
 	});
 
 	it("Create DataStore", function() {
-		store = new Ext.data.Store({
-			name: 'store',
-			proxy: proxy,
-			model: 'PRODUCT',
-			sorters: [{
-				property: 'NAME',
-				direction: 'ASC'
-			}]
-		});
+		store = acrm.database.getStore('PRODUCT');
 
 		//AOP.object(store);
-
 		expect(store.getProxy().getTableName()).toEqual('PRODUCT');
 		expect(store.getProxy().getIdProperty()).toEqual('OBJECT_ID');
 
@@ -55,7 +39,7 @@ describe("Web SQL Proxy", function() {
 		});
 
 		store.on('beforesync', function() {
-			isCompleted = false;      
+			isCompleted = false;
 		});
 	});
 
@@ -167,7 +151,7 @@ describe("Web SQL Proxy", function() {
 	});
 
 	it("Update records", function() {
-		
+
 		var id1, id2;
 
 		runs(function() {
