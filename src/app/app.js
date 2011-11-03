@@ -14,12 +14,9 @@ Ext.regApplication({
     glossOnIcon: true,
 
     launch: function() {
-
-        this.launched = true;
-        this.mainLaunch();
-    },
-
-    mainLaunch: function() {
+	
+		AOP.enable();
+		AOP.object(this);
 
         Ext.util.Format.defaultDateFormat = "F d, Y, h:i a";
 

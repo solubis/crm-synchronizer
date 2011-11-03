@@ -10,13 +10,15 @@ app.controllers.Controller = Ext.extend(Ext.Controller, {
 
     className: 'Controller',
 
-    setView: function(view) {
-	
-        this.view = view;
-    },
+	constructor: function(view){
+		if (view == undefined) {
+			throw 'Controller must have view defined- pass it to Conroller constructor';
+		}
+		this.view = view;
+		app.controllers.Controller.superclass.constructor.apply(this, arguments);
+	},
 
 	showPreviousItem: function() {
-
         this.view.setActiveItem(this.view.getActiveItem().previousItem, {
             type: 'slide',
             direction: 'right'
@@ -24,7 +26,6 @@ app.controllers.Controller = Ext.extend(Ext.Controller, {
     },
 
     showItem: function(view, animation, direction) {
-
         view.previousItem = this.view.getActiveItem();
 
         this.view.setActiveItem(view, {
@@ -34,7 +35,6 @@ app.controllers.Controller = Ext.extend(Ext.Controller, {
     },
 
     showForm: function(options) {
-
         var record = options.record;
 
         if (!this.view.FormPanel) {

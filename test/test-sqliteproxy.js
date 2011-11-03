@@ -1,54 +1,45 @@
 describe("Web SQL Proxy", function() {
 
 	var isCompleted, proxy, result, store, numberOfRecords = 5,
-		timeout = 100;
+		timeout = 500;
 
-	var dbRequestCompletion = function() {
+	var requestIsCompleted = function() {
 		return isCompleted;
 	};
 
-	var dbQueryCompletion = function() {
-		return result != undefined;
-	};
-
-	var onSQLSuccess = function(rs) {
+	var onSuccess = function(rs) {
 		result = rs;
 		isCompleted = true;
 	};
+	
+	var resetResults = function() {
+		result = undefined;
+		isCompleted = false;	
+	};
+	
+	beforeEach(resetResults);
 
-	proxy = acrm.database.getProxy();
-
-	//AOP.object(proxy);
-	proxy.on('aftersync', function() {
-		isCompleted = true;
-	});
+	proxy = acrm.Database.getProxy();
+	proxy.logSQL = true;
+	proxy.on('complete', onSuccess);
 
 	it("Initialize Database", function() {
 		proxy.initDatabase();
 	});
 
 	it("Create DataStore", function() {
-		store = acrm.database.getStore('PRODUCT');
+		store = acrm.Database.getStore('PRODUCT');
 
-		//AOP.object(store);
 		expect(store.getProxy().getTableName()).toEqual('PRODUCT');
 		expect(store.getProxy().getIdProperty()).toEqual('OBJECT_ID');
-
-		store.on('beforeload', function() {
-			isCompleted = false;
-		});
-
-		store.on('beforesync', function() {
-			isCompleted = false;
-		});
 	});
 
 	it("Load DataStore", function() {
 		runs(function() {
-			store.load(onSQLSuccess)
+			store.load(onSuccess)
 		});
 
-		waitsFor(dbRequestCompletion, "end of load", timeout);
+		waitsFor(requestIsCompleted, "end of load", timeout);
 
 		runs(function() {
 			expect(store.getCount()).toBeGreaterThan(0)
@@ -61,10 +52,10 @@ describe("Web SQL Proxy", function() {
 
 		runs(function() {
 			result = undefined;
-			proxy.getTableSize('PRODUCT', onSQLSuccess);
+			proxy.getTableSize('PRODUCT', onSuccess);
 		});
 
-		waitsFor(dbQueryCompletion, "count rows in table", timeout);
+		waitsFor(requestIsCompleted, "count rows in table", timeout);
 
 		runs(function() {
 			expect(result).toEqual(0);
@@ -73,10 +64,10 @@ describe("Web SQL Proxy", function() {
 
 	it("Load DataStore", function() {
 		runs(function() {
-			store.load(onSQLSuccess)
+			store.load(onSuccess)
 		});
 
-		waitsFor(dbRequestCompletion, "end of load", timeout);
+		waitsFor(requestIsCompleted, "end of load", timeout);
 
 		runs(function() {
 			expect(store.getCount()).toEqual(0);
@@ -106,7 +97,7 @@ describe("Web SQL Proxy", function() {
 			store.sync();
 		});
 
-		waitsFor(dbRequestCompletion, "end of sync", timeout * numberOfRecords / 5);
+		waitsFor(requestIsCompleted, "end of sync", timeout * numberOfRecords / 5);
 
 		runs(function() {
 			store.each(function(record) {
@@ -114,13 +105,15 @@ describe("Web SQL Proxy", function() {
 				expect(id).toBeDefined();
 			});
 		});
+		
+		runs(resetResults);
 
 		runs(function() {
 			result = undefined;
-			proxy.getTableSize('PRODUCT', onSQLSuccess);
+			proxy.getTableSize('PRODUCT', onSuccess);
 		});
 
-		waitsFor(dbQueryCompletion, "count rows in table", timeout);
+		waitsFor(requestIsCompleted, "count rows in table", timeout);
 
 		runs(function() {
 			expect(result).toEqual(store.getCount());
@@ -135,14 +128,16 @@ describe("Web SQL Proxy", function() {
 			store.sync();
 		});
 
-		waitsFor(dbRequestCompletion, "end of sync", timeout);
+		waitsFor(requestIsCompleted, "end of sync", timeout);
+		
+		runs(resetResults);
 
 		runs(function() {
 			result = undefined;
-			proxy.getTableSize('PRODUCT', onSQLSuccess);
+			proxy.getTableSize('PRODUCT', onSuccess);
 		});
 
-		waitsFor(dbQueryCompletion, "count rows in table", timeout);
+		waitsFor(requestIsCompleted, "count rows in table", timeout);
 
 		runs(function() {
 			expect(result).toEqual(numberOfRecords - 2);
@@ -151,9 +146,9 @@ describe("Web SQL Proxy", function() {
 	});
 
 	it("Update records", function() {
-
+ 
 		var id1, id2;
-
+		
 		runs(function() {
 			var r1 = store.getAt(0);
 			var r2 = store.getAt(1);
@@ -161,17 +156,20 @@ describe("Web SQL Proxy", function() {
 			id2 = r2.getId();
 			r1.set('NAME', 'NowaNazwa');
 			r2.set('NAME', 'NowaNazwa');
-			r1.save();
-			r2.save();
+			//r1.save();
+			//r2.save();
+			store.sync();
 		});
 
-		waitsFor(dbRequestCompletion, "end of sync", timeout);
+		waitsFor(requestIsCompleted, "end of sync", timeout);
+		
+		runs(resetResults);
 
 		runs(function() {
-			store.load(onSQLSuccess);
+			store.load(onSuccess);
 		});
 
-		waitsFor(dbRequestCompletion, "and of load", timeout);
+		waitsFor(requestIsCompleted, "and of load", timeout);
 
 		runs(function() {
 			var r1 = store.getById(id1);

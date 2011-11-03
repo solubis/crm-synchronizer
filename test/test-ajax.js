@@ -3,7 +3,7 @@ function() {
     var ajax;
 
     beforeEach(function() {
-        ajax = new acrm.data.Ajax();
+        ajax = new acrm.data.Ajax('http://localhost/~yoorek/Remote');
     });
 
     xit("Test Sencha Ajax Request",

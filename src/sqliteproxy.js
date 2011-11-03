@@ -36,7 +36,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	constructor: function(config) {
 		var me = this;
 
-		this.addEvents('aftersync');
+		this.addEvents('complete');
 
 		Ext.data.Proxy.superclass.constructor.call(me, config);
 
@@ -69,7 +69,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		me);
 
 		batch.on('complete', function() {
-			me.fireEvent('aftersync', me);
+			me.fireEvent('complete', me);
 		},
 		me);
 
@@ -353,7 +353,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	 * Run SQL statement
 	 */
 	queryDB: function(sql, successcallback, errorcallback, params) {
-		console.log('SQLite: ' + sql + ' [' + (params || '') + ']');
+		if (this.logSQL) console.log('SQLite: ' + sql + ' [' + (params || '') + ']');
 
 		var me = this;
 
@@ -457,9 +457,24 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	/**
 	 * Create database using generated schema DDL (ddl.js)   	
 	 */
-	initDatabase: function() {
+	initDatabase: function(force, callback, scope) {
 		var me = this,
-			ddl = acrm.data.DDL.ddlObjects;
+			ddl = acrm.data.DDL.ddlObjects,
+			count = ddl.length;
+
+		var onSuccess = function() {
+			count--;
+			if (count === 0) {
+				me.fireEvent('complete', me);
+				if (typeof callback == 'function') {
+					callback.call(scope || me, "success");
+				}
+			}
+		};
+
+		var onSkip = function() {
+			me.fireEvent('complete', me);
+		};
 
 		var onError = function(tx, err) {
 			me.throwDbError(tx, err);
@@ -467,13 +482,17 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 		var createDatabase = function() {
 			for (var i = 0; i < ddl.length; i++) {
-				console.log('[' + i + ']' + ' Creating ' + ddl[i].objectType + ' : ' + ddl[i].objectName);
+				//console.log('[' + i + ']' + ' Creating ' + ddl[i].objectType + ' : ' + ddl[i].objectName);
 				me.queryDB(ddl[i].objectDropScript, Ext.emptyFn, Ext.emptyFn);
-				me.queryDB(ddl[i].objectCreateScript, Ext.emptyFn, onError);
+				me.queryDB(ddl[i].objectCreateScript, onSuccess, onError);
 			}
 		}
 
-		me.queryDB('SELECT * FROM PRODUCT LIMIT 1', Ext.emptyFn, createDatabase);
+		if (force) {
+			createDatabase();
+		} else {
+			me.queryDB('SELECT * FROM PRODUCT LIMIT 1', onSkip, createDatabase);
+		}
 	},
 
 	getTableSize: function(tablename, callback, scope) {
@@ -482,7 +501,6 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		var onSuccess = function(tx, rs) {
 			var result = rs.rows.item(0)['COUNT(*)'];
 
-			//finish with callback
 			if (typeof callback == "function") {
 				callback.call(scope || me, result);
 			}

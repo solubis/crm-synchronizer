@@ -1,50 +1,44 @@
 /**
-*    Viewport.js
-*    	
-*    Created by Jerzy Błaszczyk on 2011-09-01.
-*    Copyright 2011 Client and Friends. All rights reserved.
-**/
+ *    Viewport.js
+ *    	
+ *    Created by Jerzy Błaszczyk on 2011-09-01.
+ *    Copyright 2011 Client and Friends. All rights reserved.
+ **/
 
 app.views.Viewport = Ext.extend(Ext.TabPanel, {
 
-    fullscreen: true,
-    layout: 'card',
-    cardSwitchAnimation: 'slide',
-    tabBar: {
-        dock: 'bottom',
-        ui: 'dark',
-        layout: {
-            pack: 'center'
-        }
-    },
+	className: 'Viewport',
 
-    listeners: {
-        scope: this,
-        cardswitch: function(me, newTab, oldTab) {
-            app.currentTab = newTab;
-            if (oldTab) {
-                oldTab.destroy();
-            }
-        }
-    },
+	fullscreen: true,
+	layout: 'card',
+	cardSwitchAnimation: 'fade',
+	tabBar: {
+		dock: 'bottom',
+		ui: 'dark',
+		layout: {
+			pack: 'center'
+		}
+	},
 
-    initComponent: function() {
+	listeners: {
+		scope: this,
+		cardswitch: function(me, newTab, oldTab) {
+			app.currentTab = newTab;
+		}
+	},
 
-        app.views.firstTab = new app.views.Tab({
-            name: 'FirstTab'
-        });
-        app.views.secondTab = new app.views.Tab({
-            name: 'SecondTab'
-        });
+	initComponent: function() {
 
-        AOP.object(app.views.firstTab);
-        AOP.object(app.views.secondTab);
+		AOP.object(this);
 
-        this.items = [app.views.firstTab, app.views.secondTab];
+		app.views.firstTab = {xtype:'tabview'};//new app.views.Tab({name:1});
+		app.views.secondTab = {xtype:'tabview'};//new app.views.Tab({name:2});
 
-        app.views.Viewport.superclass.initComponent.apply(this, arguments);
+		this.items = [app.views.firstTab, app.views.secondTab, {xtype:'tabview'}, {xtype:'tabview'}, {xtype:'tabview'}, {xtype:'tabview'}, {xtype:'tabview'}];
 
-        app.currentTab = app.views.firstTab;
-    }
+		app.views.Viewport.superclass.initComponent.apply(this, arguments);
+
+		app.currentTab = app.views.firstTab;
+	}
 
 });

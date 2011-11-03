@@ -1,117 +1,158 @@
 /**
-*    synch.js	
-*    
-*    Created by Jerzy Blaszczyk on 2011-10-31.
-*    Copyright 2011 Client and Friends. All rights reserved.
-*/
+ *    synch.js	
+ *    
+ *    Created by Jerzy Blaszczyk on 2011-10-31.
+ *    Copyright 2011 Client and Friends. All rights reserved.
+ */
 
-Ext.ns('acrm.data');
+Ext.ns('acrm');
 
-acrm.data.Database = {
+acrm.serverURL = 'http://10.46.1.5:804';
 
-    isComplete: false,
+acrm.Ajax = {
 
-    openDatabase: function() {
-        this.db = openDatabase('acrm', '1.0', 'Adaptive CRM Database', 5 * 1024 * 1024);
-    },
+	request: function(command, callback, scope) {
+		var me = this;
 
-    runSQL: function(sql, callback) {
-        console.log(sql);
-        var that = this;
+		Ext.Ajax.request({
+			url: acrm.serverURL + '/' + command,
+			success: function(response, opts) {
+				var result = Ext.decode(response.responseText);
+				if (typeof callback == 'function') {
+					callback.call(scope || me, result);
+				}
+			},
+			failure: function(response, opts) {
+				throw 'Server error with status code : ' + response.status;
+			}
+		});
+	},
+};
 
+acrm.Synchronizer = {
 
-        if (!this.db) {
-            this.openDatabase();
-        }
+	getProcessingOrder: function(callback, scope) {
+		var me = this,
+			ajax;
 
-        this.db.transaction(function(tx) {
-            tx.executeSql(sql, [],
-            function(tx, result) {
-                that.success = true;
-                if (typeof callback == 'function') {
-                    callback.call(that, result);
-                };
-            },
-            function(tx, error) {
-                that.success = false;
-                that.message = error.message;
-                throw 'Database error ' + error.message;
-            });
-        });
-    },
+		var onSuccess = function(result) {
+			me.processingOrder = result.Value;
+			if (typeof callback == 'function') {
+				callback.call(scope || me, me.processingOrder);
+			}
+		};
 
-    createDatabase: function() {
-        var ddl = acrm.data.DDL.ddlObjects;
-
-        if (!this.db) {
-            this.openDatabase();
-        }
-
-        for (var i = 0; i < ddl.length; i++) {
-            console.log('[' + i + ']' + ' Creating ' + ddl[i].objectType + ' : ' + ddl[i].objectName);
-            this.runSQL(ddl[i].objectScript);
-        }
-    },
-
-    download: function() {
-        var that = this;
-
-        this.isComplete = false;
-        this.proxy = new acrm.data.Ajax();
-        this.proxy.request('product.json',
-        function(result) {
-            var insert = result.INSERT[0],
-            records = 0,
-            values = result.INSERT[0].values;
-
-            for (var i = 0; i < values.length; i++) {
-                var insertSQL = "INSERT INTO " + insert.table + " (" + insert.columns + ") VALUES (" + values[i] + ")";
-                (function(k) {
-                    that.runSQL(insertSQL,
-                    function(result) {
-                        records++;
-                        if (k === values.length - 1) {
-                            that.success = true;
-                            that.count = records;
-                            that.isComplete = true;
-                        }
-                    });
-                }) (i);
-            };
-
-        });
-    },
-
-	getSchema: function() {
-		
-		
+		if (this.processingOrder == undefined) {
+			acrm.Ajax.request('GetProcessingOrder.json', onSuccess);
+		} else {
+			callback.call(scope || me, me.processingOrder);
+		}
 	},
 
-    clearTable: function(tableName) {
-        var that = this;
-        this.isComplete = false;
-        this.runSQL('DELETE FROM ' + tableName,
-        function() {
-            that.isComplete = true;
-            that.success = true;
-        });
-    },
+	getInstall: function(callback, scope) {
+		var me = this,
+			ajax;
 
-    countRecords: function(tableName) {
-        var that = this;
-        this.isComplete = false;
-        this.runSQL('SELECT COUNT(*) FROM ' + tableName,
-        function(result) {
-            that.success = true;
-            that.count = result.rows.item(0)['COUNT(*)'];
-            that.isComplete = true;
-        });
-    },
+		var onSuccess = function(result) {
+			me.install = result.Value;
+			if (typeof callback == 'function') {
+				callback.call(scope || me, me.install);
+			}
+		};
 
-    disableTriggers: function() {
-        var sql = "UPDATE CONFIGURATION SET PARAMETER_VALUE=’FALSE’ WHERE PARAMETER_NAME=’TRIGGERS_ENABLE’";
-        var that = this;
+		if (this.install == undefined) {
+			acrm.Ajax.request('TestInstall.json', onSuccess);
+		} else {
+			callback.call(scope || me, me.install);
+		}
+	},
 
-        that.runSQL(sql);
-    }
+	download_OLD: function(callback, scope) {
+		var me = this,
+			ajax, db;
+
+		db = acrm.database.getProxy();
+
+		acrm.Ajax.request('product.json', function(result) {
+			var insert = result.INSERT[0],
+				records = 0,
+				values = result.INSERT[0].values,
+				count = values.length;
+
+			var onSuccess = function(tx, rs) {
+				count--;
+				if (count === 0) {
+					if (typeof callback == 'function') {
+						callback.call(scope || me, result);
+					}
+				}
+			};
+
+			var onError = function(tx, err) {
+				me.throwDbError(tx, err);
+			};
+
+			for (var i = 0; i < values.length; i++) {
+				var insertSQL = "INSERT INTO " + insert.table + " (" + insert.columns + ") VALUES (" + values[i] + ")";
+				db.queryDB(insertSQL, onSuccess);
+			};
+		});
+	},
+
+	download: function(callback, scope) {
+		var me = this,
+			ajax, db, count = 0,
+			i, j, table, rows, insertSQL, placeholders = [],
+			values = [];
+
+		var onSuccess = function(tx, rs) {
+			count--;
+			//if (count % 1000 == 0) console.log(count);
+			if (count === 0) {
+				if (typeof callback == 'function') {
+					callback.call(scope || me, "success");
+				}
+			}
+		};
+
+		var onError = function(tx, err) {
+			db.throwDbError(tx, err);
+		};
+
+		var onInstall = function(result) {
+			db = acrm.Database.getProxy();
+
+			for (i = 0; i < me.processingOrder.length; i++) {
+				table = me.processingOrder[i];
+				rows = result[table].Values;
+				count = count + rows.length;
+			}
+
+			db.db.transaction(function(tx) {
+
+				for (i = 0; i < me.processingOrder.length; i++) {
+					table = me.processingOrder[i];
+					rows = result[table].Values;
+					columns = result[table].Columns.slice(1).join(',');
+
+					for (j = 0; j < rows.length; j++) {
+						placeholders = [];
+						values = rows[j].slice(1);
+						for (k = 0; k < values.length; k++) {
+							placeholders.push('?');
+						}
+						insertSQL = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders.join(',') + ")";
+					
+						tx.executeSql(insertSQL, values, onSuccess, onError);
+					}
+				}
+			});
+		};
+
+		var onProcessingOrder = function() {
+			me.getInstall(onInstall);
+		};
+
+		me.getProcessingOrder(onProcessingOrder);
+	}
 };
