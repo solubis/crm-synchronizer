@@ -1,7 +1,7 @@
 describe("Web SQL Proxy", function() {
 
 	var isCompleted, proxy, result, store, numberOfRecords = 5,
-		timeout = 500;
+		timeout = 1000;
 
 	var requestIsCompleted = function() {
 		return isCompleted;
@@ -11,20 +11,26 @@ describe("Web SQL Proxy", function() {
 		result = rs;
 		isCompleted = true;
 	};
-	
+
 	var resetResults = function() {
 		result = undefined;
-		isCompleted = false;	
+		isCompleted = false;
 	};
-	
+
 	beforeEach(resetResults);
 
 	proxy = acrm.Database.getProxy();
+	AOP.object(proxy);
+	AOP.enable();
 	proxy.logSQL = true;
 	proxy.on('complete', onSuccess);
 
 	it("Initialize Database", function() {
-		proxy.initDatabase();
+		runs(function() {
+			proxy.initDatabase(true, onSuccess);
+		});
+
+		waitsFor(requestIsCompleted, "end of load", timeout);
 	});
 
 	it("Create DataStore", function() {
@@ -42,16 +48,17 @@ describe("Web SQL Proxy", function() {
 		waitsFor(requestIsCompleted, "end of load", timeout);
 
 		runs(function() {
-			expect(store.getCount()).toBeGreaterThan(0)
+			expect(store.getCount()).toEqual(0)
 		});
 	});
 
 	it("Truncate Tables", function() {
-		proxy.truncate('PRODUCT');
-		proxy.truncate('CHANGE_TRACKING');
+		runs(function() {
+			proxy.truncate('PRODUCT');
+			proxy.truncate('CHANGE_TRACKING');
+		});
 
 		runs(function() {
-			result = undefined;
 			proxy.getTableSize('PRODUCT', onSuccess);
 		});
 
@@ -62,7 +69,7 @@ describe("Web SQL Proxy", function() {
 		});
 	});
 
-	it("Load DataStore", function() {
+	it("Load DataStore Again", function() {
 		runs(function() {
 			store.load(onSuccess)
 		});
@@ -80,8 +87,8 @@ describe("Web SQL Proxy", function() {
 
 			var p = Ext.ModelMgr.create({
 				NAME: 'Nazwa',
-				IS_ACTIVE: true,
-				IS_KEY_PRODUCT: true
+				IS_ACTIVE: 1,
+				IS_KEY_PRODUCT: 1
 			},
 			'PRODUCT');
 
@@ -92,7 +99,7 @@ describe("Web SQL Proxy", function() {
 
 	it("Save records", function() {
 		expect(store.getCount()).toEqual(numberOfRecords);
-		// Save records to database
+
 		runs(function() {
 			store.sync();
 		});
@@ -105,7 +112,7 @@ describe("Web SQL Proxy", function() {
 				expect(id).toBeDefined();
 			});
 		});
-		
+
 		runs(resetResults);
 
 		runs(function() {
@@ -129,7 +136,7 @@ describe("Web SQL Proxy", function() {
 		});
 
 		waitsFor(requestIsCompleted, "end of sync", timeout);
-		
+
 		runs(resetResults);
 
 		runs(function() {
@@ -146,23 +153,22 @@ describe("Web SQL Proxy", function() {
 	});
 
 	it("Update records", function() {
- 
+
 		var id1, id2;
-		
+
 		runs(function() {
 			var r1 = store.getAt(0);
 			var r2 = store.getAt(1);
 			id1 = r1.get('OBJECT_ID');
 			id2 = r2.getId();
 			r1.set('NAME', 'NowaNazwa');
-			r2.set('NAME', 'NowaNazwa');
-			//r1.save();
-			//r2.save();
 			store.sync();
+			r2.set('NAME', 'NowaNazwa');
+			r2.save();
 		});
 
 		waitsFor(requestIsCompleted, "end of sync", timeout);
-		
+
 		runs(resetResults);
 
 		runs(function() {

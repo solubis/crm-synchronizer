@@ -5,11 +5,11 @@
 *    Copyright 2011 Client and Friends. All rights reserved.
 */
 
-xdescribe("Synchronization", function() {
+describe("Synchronization", function() {
 	var db;
 
 	var isCompleted, proxy, result, ajax, numberOfRecords = 5,
-		timeout = 5000;
+		timeout = 100000;
 
 	var requestIsCompleted = function() {
 		return isCompleted;
@@ -24,10 +24,6 @@ xdescribe("Synchronization", function() {
 	};
 
 	proxy = acrm.Database.getProxy();
-	proxy.logSQL = false;
-
-	//AOP.enable();
-	//AOP.object(synch);
 
 	proxy.on('complete', function() {
 		isCompleted = true;

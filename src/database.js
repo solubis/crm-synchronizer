@@ -1,3 +1,11 @@
+/**
+*    database.js	
+*    
+*    Created by Jerzy Blaszczyk on 2011-11-09.
+*    Copyright 2011 Client and Friends. All rights reserved.
+*/
+
+
 Ext.ns('acrm');
 
 acrm.Database = {

@@ -7,14 +7,32 @@
 
 Ext.ns('acrm');
 
-acrm.serverURL = 'http://10.46.1.5:804';
+// For testing with files instead of services
+testfile = false;
 
-acrm.Ajax = {
+// Server URL
+if (testfile) 
+	acrm.serverURL = 'http://10.46.1.5:804';
+else 
+	acrm.serverURL = 'http://10.46.1.5:804/AdaptiveCrmMobileService.svc'
+
+
+// Ajax request using Sencha framework
+acrm.AjaxSencha = {
 
 	request: function(command, callback, scope) {
-		var me = this;
+		var me = this,
+			ajax;
 
-		Ext.Ajax.request({
+		ajax = new Ext.data.Connection({
+			useDefaultXhrHeader: false,
+			autoAbort: false,
+			disableCaching: true
+		});
+
+		ajax.request({
+			method: 'GET',
+			//	jsonData: '{}',
 			url: acrm.serverURL + '/' + command,
 			success: function(response, opts) {
 				var result = Ext.decode(response.responseText);
@@ -29,85 +47,85 @@ acrm.Ajax = {
 	},
 };
 
+// Ajax request using standard XmlHttpRequest
+acrm.Ajax = {
+
+	request: function(command, callback, scope) {
+		var me = this;
+
+		var request = new XMLHttpRequest();
+		request.open('GET', acrm.serverURL + '/' + command, true);
+		request.onreadystatechange = function(aEvt) {
+			if (request.readyState == 4) {
+				if (request.status == 200) {
+					var result = Ext.decode(request.responseText);
+					if (typeof callback == 'function') {
+						callback.call(scope || me, result);
+					}
+				} else {
+					throw 'Server error with status code : ' + response.status;
+				}
+			}
+		};
+		request.send(null);
+	},
+};
+
+/**	
+* Synchronizer sigleton - proxy to remote data 
+* synchronization services
+*/
+
 acrm.Synchronizer = {
 
+
+	// Download data with GetProcessingOrder service
 	getProcessingOrder: function(callback, scope) {
 		var me = this,
 			ajax;
 
 		var onSuccess = function(result) {
-			me.processingOrder = result.Value;
+			me.processingOrder = result.GetProcessingOrderResult.Value;
 			if (typeof callback == 'function') {
 				callback.call(scope || me, me.processingOrder);
 			}
 		};
 
-		if (this.processingOrder == undefined) {
-			acrm.Ajax.request('GetProcessingOrder.json', onSuccess);
+		if (me.processingOrder == undefined) {
+			acrm.Ajax.request('GetProcessingOrder' + (testfile ? '.json' : ''), onSuccess);
 		} else {
 			callback.call(scope || me, me.processingOrder);
 		}
 	},
 
+	// Download data with GetInstall service
 	getInstall: function(callback, scope) {
 		var me = this,
 			ajax;
 
 		var onSuccess = function(result) {
-			me.install = result.Value;
+			me.install = result.TestInstallResult.Value;
 			if (typeof callback == 'function') {
 				callback.call(scope || me, me.install);
 			}
 		};
 
 		if (this.install == undefined) {
-			acrm.Ajax.request('TestInstall.json', onSuccess);
+			acrm.Ajax.request('TestInstall' + (testfile ? '.json' : ''), onSuccess);
 		} else {
 			callback.call(scope || me, me.install);
 		}
 	},
 
-	download_OLD: function(callback, scope) {
-		var me = this,
-			ajax, db;
-
-		db = acrm.database.getProxy();
-
-		acrm.Ajax.request('product.json', function(result) {
-			var insert = result.INSERT[0],
-				records = 0,
-				values = result.INSERT[0].values,
-				count = values.length;
-
-			var onSuccess = function(tx, rs) {
-				count--;
-				if (count === 0) {
-					if (typeof callback == 'function') {
-						callback.call(scope || me, result);
-					}
-				}
-			};
-
-			var onError = function(tx, err) {
-				me.throwDbError(tx, err);
-			};
-
-			for (var i = 0; i < values.length; i++) {
-				var insertSQL = "INSERT INTO " + insert.table + " (" + insert.columns + ") VALUES (" + values[i] + ")";
-				db.queryDB(insertSQL, onSuccess);
-			};
-		});
-	},
-
+	// Download data changes and insert into local SQLite database
 	download: function(callback, scope) {
 		var me = this,
-			ajax, db, count = 0,
+			ajax, conn, count = 0,
 			i, j, table, rows, insertSQL, placeholders = [],
 			values = [];
 
 		var onSuccess = function(tx, rs) {
 			count--;
-			//if (count % 1000 == 0) console.log(count);
 			if (count === 0) {
 				if (typeof callback == 'function') {
 					callback.call(scope || me, "success");
@@ -116,11 +134,11 @@ acrm.Synchronizer = {
 		};
 
 		var onError = function(tx, err) {
-			db.throwDbError(tx, err);
+			conn.throwDbError(tx, err);
 		};
 
 		var onInstall = function(result) {
-			db = acrm.Database.getProxy();
+			conn = acrm.Database.getProxy();
 
 			for (i = 0; i < me.processingOrder.length; i++) {
 				table = me.processingOrder[i];
@@ -128,7 +146,7 @@ acrm.Synchronizer = {
 				count = count + rows.length;
 			}
 
-			db.db.transaction(function(tx) {
+			conn.db.transaction(function(tx) {
 
 				for (i = 0; i < me.processingOrder.length; i++) {
 					table = me.processingOrder[i];
@@ -142,7 +160,7 @@ acrm.Synchronizer = {
 							placeholders.push('?');
 						}
 						insertSQL = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders.join(',') + ")";
-					
+
 						tx.executeSql(insertSQL, values, onSuccess, onError);
 					}
 				}
