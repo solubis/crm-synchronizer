@@ -19,7 +19,7 @@ describe("Web SQL Proxy", function() {
 
 	beforeEach(resetResults);
 
-	proxy = acrm.Database.getProxy();
+	proxy = acrm.data.Database.getProxy();
 	AOP.object(proxy);
 	AOP.enable();
 	proxy.logSQL = true;
@@ -27,14 +27,14 @@ describe("Web SQL Proxy", function() {
 
 	it("Initialize Database", function() {
 		runs(function() {
-			proxy.initDatabase(true, onSuccess);
+			acrm.data.Database.initDatabase(true, onSuccess);
 		});
 
 		waitsFor(requestIsCompleted, "end of load", timeout);
 	});
 
 	it("Create DataStore", function() {
-		store = acrm.Database.getStore('PRODUCT');
+		store = acrm.data.Database.getStore('PRODUCT');
 
 		expect(store.getProxy().getTableName()).toEqual('PRODUCT');
 		expect(store.getProxy().getIdProperty()).toEqual('OBJECT_ID');
@@ -87,8 +87,8 @@ describe("Web SQL Proxy", function() {
 
 			var p = Ext.ModelMgr.create({
 				NAME: 'Nazwa',
-				IS_ACTIVE: 1,
-				IS_KEY_PRODUCT: 1
+				IS_ACTIVE: 0,
+				IS_KEY_PRODUCT: 0
 			},
 			'PRODUCT');
 

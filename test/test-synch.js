@@ -9,7 +9,7 @@ describe("Synchronization", function() {
 	var db;
 
 	var isCompleted, proxy, result, ajax, numberOfRecords = 5,
-		timeout = 100000;
+		timeout = 10000;
 
 	var requestIsCompleted = function() {
 		return isCompleted;
@@ -22,8 +22,17 @@ describe("Synchronization", function() {
 		result = rs;
 		isCompleted = true;
 	};
+	
+	// For testing with files instead of services
+	acrm.data.useFiles = true;
 
-	proxy = acrm.Database.getProxy();
+	// Server URL
+	if (acrm.data.useFiles) 
+		acrm.data.serverURL = 'http://localhost/acrmsynch/db';
+	else 
+		acrm.data.serverURL = 'http://10.46.1.5:804/AdaptiveCrmMobileService.svc';
+
+	proxy = acrm.data.Database.getProxy();
 
 	proxy.on('complete', function() {
 		isCompleted = true;
@@ -37,7 +46,7 @@ describe("Synchronization", function() {
 	it("Initialize Database", function() {
 		runs(function() {
 			console.log('[' + new Date() + ']' + 'initializing database');
-			proxy.initDatabase(true, onSuccess);
+			acrm.data.Database.initDatabase(true, onSuccess);
 		});
 
 		waitsFor(requestIsCompleted, "end of init database", timeout);
@@ -50,7 +59,7 @@ describe("Synchronization", function() {
 	it("Download Processing Order", function() {
 		runs(function() {
 			console.log('[' + new Date() + ']' + 'starting download processing order');
-			acrm.Synchronizer.getProcessingOrder(onSuccess);
+			acrm.data.Synchronizer.getProcessingOrder(onSuccess);
 		});
 
 		waitsFor(requestIsCompleted, "end of download processing order", timeout);
@@ -64,7 +73,7 @@ describe("Synchronization", function() {
 	it("Download Data", function() {
 		runs(function() {
 			console.log('[' + new Date() + ']' + 'starting download');
-			acrm.Synchronizer.download(onSuccess);
+			acrm.data.Synchronizer.download(onSuccess);
 		});
 
 		waitsFor(requestIsCompleted, "end of downloading data", timeout);

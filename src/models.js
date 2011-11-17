@@ -1,6 +1,18 @@
+/**
+ *  models.js
+ *  
+ *  FILE GENERATED - DO NOT MODIFY!!!
+ *  
+ *  Copyright 2011 Client and Friends. All rights reserved.
+ */
 
 Ext.ns('acrm.data');
 
+
+/**
+ *	Structure holding all data model definitions reflecting database schema
+ *  Used by Sencha Stores
+ */
 acrm.data.Tables = {
 	CHANGE_TRACKING : {
 		fields : [{

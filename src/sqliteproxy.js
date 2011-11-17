@@ -1,38 +1,49 @@
 /**
- *    sqliteproxy.js	
+ *  sqliteproxy.js	
+ * 
+ *  Local SQLite Proxy 
  *    
- *    Created by Jerzy Błaszczyk on 2011-10-28.
- *    Copyright 2011 Client and Friends. All rights reserved.
+ *  Created by Jerzy Błaszczyk on 2011-10-28.
+ *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
 Ext.ns('acrm.data');
 
+/**
+ *  Class for accesing data in SQLite Web SQL database
+ *  @class acrm.data.Proxy
+ */
+
 acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 	/**
-	 * @cfg {String} version
-	 * Database version
+	 *  @type {String} version
+	 *  Database version
 	 */
 	dbVersion: '1.0',
 
 	/**
-	 * @cfg {String} dbName
-	 * Name of database
+	 *  @type {String} dbName
+	 *  Name of database
 	 */
 	dbName: undefined,
 
 	/**
-	 * @cfg {String} dbDescription
-	 * Description of the database
+	 *  @type {String} dbDescription
+	 *  Description of the database
 	 */
 	dbDescription: '',
 
 	/**
-	 * @cfg {String} dbSize
-	 * Max storage size in bytes
+	 *  @type {String} dbSize
+	 *  Max storage size in bytes
 	 */
 	dbSize: 5 * 1024 * 1024,
 
+	/**
+	 *  @param {Object} config Configuration object
+	 *  Constructor method
+	 */
 	constructor: function(config) {
 		var me = this;
 
@@ -40,12 +51,6 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 		Ext.data.Proxy.superclass.constructor.call(me, config);
 
-		me.connect();
-		//me.createTable();
-	},
-
-	connect: function() {
-		var me = this;
 		me.db = openDatabase(me.dbName, me.dbVersion, me.dbDescription, me.dbSize);
 	},
 
@@ -95,39 +100,27 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 	//inherit docs
 	read: function(operation, callback, scope) {
-
-		if (operation.id) {
-			throw 'Reading single record is not implemented';
-		}
-
-		var me = this;
-
-		var sql = me.dbQuery || 'SELECT * FROM ' + me.getTableName() + '',
-			params;
-
-		var onSuccess = function(tx, results) {
-			me.applyDataToModel(tx, results, operation, callback, scope);
-		};
-
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
-		me.queryDB(sql, onSuccess, onError);
+		return this.runOperation.apply(this, arguments);
 	},
 
+	/**
+	 *  Prepare and run CRUD operation and call back passed function
+	 *  @private
+	 *  @param {Operation} operation (CRUD)
+	 *  @callback {Function} callback function
+	 *  @scope {Object} scope of callback function
+	 */
 	runOperation: function(operation, callback, scope) {
 		var me = this;
 
-		var records = me.getFields(operation.records),
-			length = records.length,
+		var records = (operation.records ? me.getFields(operation.records) : []),
+			length = (records ? records.length : 0),
 			count = length,
-			id, record, i, idProperty = me.getIdProperty(),
-			dbTable = me.getTableName();
+			id, record;
 
 		var onSuccess = function() {
 			count--;
-			if (count === 0) {
+			if (count <= 0) {
 				operation.setCompleted();
 				operation.setSuccessful();
 				if (typeof callback == 'function') {
@@ -138,32 +131,88 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 		operation.setStarted();
 
-		for (i = 0; i < length; i++) {
+		if (operation.action === 'read') {
+			me.readRecord(operation, onSuccess);
+			return;
+		}
+
+		for (var i = 0; i < length; i++) {
 			record = records[i];
 			switch (operation.action) {
 			case "create":
-				me.createRecord(record, dbTable, idProperty, onSuccess);
+				me.createRecord(record, onSuccess);
 				break;
 			case "update":
-				me.updateRecord(record, dbTable, idProperty, onSuccess);
+				me.updateRecord(record, onSuccess);
 				break;
 			case "destroy":
-				me.destroyRecord(record.data[idProperty], dbTable, idProperty, onSuccess);
+				me.destroyRecord(record, onSuccess);
 				break;
 			};
 		}
 	},
 
 	/**
-	 * Saves the given record in the Proxy.
-	 * @param {Ext.data.Model} record The model instance
+	 *  Read all records from table
+	 *  @private
+	 *  @param {Ext.data.Model} record
+	 *  @callback {Function} callback function
+	 *  @scope {Object} scope of callback function
 	 */
-	createRecord: function(record, tablename, primarykey, callback) {
+	readRecord: function(operation, callback) {
+		var me = this;
+
+		var tablename = me.getTableName(),
+			sql = me.dbQuery || 'SELECT * FROM ' + tablename;
+
+		var onSuccess = function(tx, results) {
+			var records = [],
+				storedatas = [],
+				rows = results.rows;
+
+			for (var i = 0; i < rows.length; i++) {
+				records.push(rows.item(i));
+			}
+
+			if (results.rows && records.length) {
+				for (var i = 0; i < results.rows.length; i++) {
+					var storedata = new me.model(records[i]);
+					storedatas.push(storedata);
+				}
+			}
+
+			operation.resultSet = new Ext.data.ResultSet({
+				records: storedatas,
+				total: storedatas.length,
+				loaded: true
+			});
+
+			if (typeof callback == 'function') {
+				callback.call(me);
+			}
+		};
+
+		var onError = function(tx, err) {
+			me.throwDbError(tx, err);
+		};
+
+		me.queryDB(sql, onSuccess, onError);
+	},
+
+	/**
+	 *  Saves the given record in the Proxy.
+	 *  @param {Ext.data.Model} record the model instance
+	 *  @param {Function} callback function
+	 *  @private
+	 */
+	createRecord: function(record, callback) {
 		var me = this,
 			rawData = record.data,
 			fields = [],
 			values = [],
 			placeholders = [],
+			tablename = me.getTableName(),
+			primarykey = me.getIdProperty(),
 			id = me.getGUID();
 
 		var onSuccess = function(tx, rs) {
@@ -182,9 +231,8 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		placeholders.push('?');
 		values.push(id);
 
-		//extract data to be inserted
 		for (var i in rawData) {
-			if (rawData[i]) {
+			if (rawData[i] !== undefined) {
 				fields.push(i);
 				values.push(rawData[i]);
 				placeholders.push('?');
@@ -198,20 +246,22 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**
-	 * Updates the given record.
-	 * @param {Ext.data.Model} record The model instance
+	 *  Updates the given record.
+	 *  @param {Ext.data.Model} record the model instance
+	 *  @param {Function} callback function
+	 *  @private
 	 */
-	updateRecord: function(record, tablename, primarykey, callback) {
+	updateRecord: function(record, callback) {
 		var me = this,
+			primarykey = me.getIdProperty(),
 			id = record.get(primarykey),
-			key = primarykey,
 			modifiedData = record.modified,
 			newData = record.data,
+			tablename = me.getTableName(),
 			pairs = [],
 			values = [];
 
 		var onSuccess = function(tx, rs) {
-
 			//add new record if id doesn't exist
 			if (rs.rowsAffected == 0) {
 				me.createRecord(record, tablename, primarykey, callback);
@@ -235,18 +285,22 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		};
 
 		values.push(id);
-		var sql = 'UPDATE ' + tablename + ' SET ' + pairs.join(',') + ' WHERE ' + key + ' = ?';
+		var sql = 'UPDATE ' + tablename + ' SET ' + pairs.join(',') + ' WHERE ' + primarykey + ' = ?';
 		me.queryDB(sql, onSuccess, onError, values);
 		return true;
 	},
 
 	/**
-	 * @private
-	 * Physically removes a given record from the object store. 
-	 * @param {Mixed} id The id of the record to remove
+	 *  Physically removes a given record from the object store. 
+	 *  @param {Ext.data.Model} record record to remove
+	 *  @param {Function} callback function
+	 *  @private
 	 */
-	destroyRecord: function(id, tablename, primarykey, callback) {
+	destroyRecord: function(record, callback) {
 		var me = this,
+			tablename = me.getTableName(),
+			primarykey = me.getIdProperty(),
+			id = record.get(primarykey),
 			values = [];
 
 		var onSuccess = function(tx, rs) {
@@ -266,38 +320,10 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**
-	 *@private
-	 *Creates table if not exists
-	 */
-	createTable: function() {
-		var me = this,
-			dbTable = me.getTableName();
-
-		me.db.transaction(function(tx) {
-
-			var onError = function(tx, err) {
-				me.throwDbError(tx, err);
-			};
-
-			var onSucess = function(tx, results) {};
-
-			var createTable = function() {
-				var createsql = 'CREATE TABLE IF NOT EXISTS ' + dbTable + '(' + me.constructFields() + ')';
-				console.log(createsql);
-				tx.executeSql(createsql, [], onSucess, onError);
-			};
-
-			var tablesql = 'SELECT * FROM ' + dbTable + ' LIMIT 1';
-			tx.executeSql(tablesql, [], Ext.emptyFn, createTable);
-		});
-
-	},
-
-	/**
-	 * @private
-	 * Get reader data and set up fields accordingly
-	 * Used for table creation only
-	 * @return {String} fields separated by a comma
+	 *  Get reader data and set up fields accordingly
+	 *  Used for table creation only
+	 *  @return {String} fields separated by a comma
+	 *  @private
 	 */
 	constructFields: function() {
 		var me = this,
@@ -321,9 +347,11 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**
-	 * Function to return records w.r.t to table fields. If model has fields
-	 * which is not table field name, it will break create and update functionalitites.
-	 * This looks for field property "isTableField"
+	 *  Function to return records converted to model fields. If model has fields
+	 *  which is not table field name, it will break create and update functionalitites.
+	 *  This looks for field property "isTableField"
+	 *  @param {Array} records Array of records
+	 *  @private
 	 */
 	getFields: function(records) {
 		var me = this;
@@ -350,7 +378,11 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**	
-	 * Run SQL statement
+	 *  Run SQL statement
+	 *  @param {String} sql SQL statement
+	 *  @param {Function} successcallback function to call after succesfull SQL operation
+	 *  @param {Function} errorcallback function to call after error
+	 *  @param {Array} params Array of parameters passed to SQL function (when used '?' placeholders)
 	 */
 	queryDB: function(sql, successcallback, errorcallback, params) {
 		if (this.logSQL) console.log('SQLite: ' + sql + ' [' + (params || '') + ']');
@@ -364,74 +396,41 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**
-	 * @private
-	 * Created array of objects, each representing field=>value pair.
-	 * @param {Object} tx Transaction
-	 * @param {Object} rs Response
-	 * @return {Array} Returns parsed data
-	 */
-	parseData: function(tx, rs) {
-		var rows = rs.rows,
-			data = [],
-			i = 0;
-
-		for (; i < rows.length; i++) {
-			data.push(rows.item(i));
-		}
-		return data;
-	},
-
-	/**	
-	 * @private
-	 * Convert results from SQL query to model structure
-	 */
-	applyDataToModel: function(tx, results, operation, callback, scope) {
-		var me = this;
-		var records = me.parseData(tx, results);
-		var storedatas = [];
-
-		if (results.rows && records.length) {
-			for (var i = 0; i < results.rows.length; i++) {
-				var storedata = new me.model(records[i]);
-				storedatas.push(storedata);
-			}
-		}
-
-		operation.resultSet = new Ext.data.ResultSet({
-			records: storedatas,
-			total: storedatas.length,
-			loaded: true
-		});
-
-		operation.setSuccessful();
-		operation.setCompleted();
-
-		//finish with callback
-		if (typeof callback == "function") {
-			callback.call(scope || me, operation);
-		}
-	},
-
-	/**
-	 * Output Query Error
-	 * @param {Object} tx Transaction
-	 * @param {Object} rs Response
+	 *  Output Query Error
+	 *  @param {Object} tx Transaction
+	 *  @param {Object} rs Response
 	 */
 	throwDbError: function(tx, err) {
 		console.log('SQLite Proxy Error: ' + err.message);
 	},
 
 	/**
-	 * Destroys all records stored in the proxy 
+	 *  Destroys all records stored in the proxy 
+	 *  @param {String} tablename Name of database table 
+	 *  @callback {Function} callback function
+	 *  @scope {Object} scope of callback function
 	 */
-	truncate: function(tablename) {
+	truncate: function(tablename, callback, scope) {
 		var me = this,
 			sql = 'DELETE FROM ' + tablename || me.dbTable;
 
-		me.queryDB(sql);
+		var onSuccess = function(tx, rs) {
+			if (typeof callback == "function") {
+				callback.call(scope || me, result);
+			}
+		};
+
+		var onError = function(tx, err) {
+			me.throwDbError(tx, err);
+		};
+
+		me.queryDB(sql, onSuccess, onError);
 		return true;
 	},
 
+	/**
+	 *  Get table name based on model name
+	 */
 	getTableName: function() {
 		var me = this,
 			model = me.getModel();
@@ -443,6 +442,9 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		return model.modelName;
 	},
 
+	/**
+	 *  Get id property name based on model idProperty field
+	 */
 	getIdProperty: function() {
 		var me = this,
 			model = me.getModel();
@@ -455,46 +457,10 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**
-	 * Create database using generated schema DDL (ddl.js)   	
+	 *  Get number of records in table
+	 *  @callback {Function} callback function
+	 *  @scope {Object} scope of callback function
 	 */
-	initDatabase: function(force, callback, scope) {
-		var me = this,
-			ddl = acrm.data.DDL.ddlObjects,
-			count = ddl.length;
-
-		var onSuccess = function() {
-			count--;
-			if (count === 0) {
-				me.fireEvent('complete', me);
-				if (typeof callback == 'function') {
-					callback.call(scope || me, "success");
-				}
-			}
-		};
-
-		var onSkip = function() {
-			me.fireEvent('complete', me);
-		};
-
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
-		var createDatabase = function() {
-			for (var i = 0; i < ddl.length; i++) {
-				//console.log('[' + i + ']' + ' Creating ' + ddl[i].type + ' : ' + ddl[i].name);
-				me.queryDB(ddl[i].drop, Ext.emptyFn, Ext.emptyFn);
-				me.queryDB(ddl[i].create, onSuccess, onError);
-			}
-		}
-
-		if (force) {
-			createDatabase();
-		} else {
-			me.queryDB('SELECT * FROM PRODUCT LIMIT 1', onSkip, createDatabase);
-		}
-	},
-
 	getTableSize: function(tablename, callback, scope) {
 		var me = this;
 

@@ -1,24 +1,18 @@
 /**
- *    synch.js	
+ *  synch.js	
  *    
- *    Created by Jerzy Blaszczyk on 2011-10-31.
- *    Copyright 2011 Client and Friends. All rights reserved.
+ *  Synchronizer module used for synchronizing local data with server 
+ *
+ *  Created by Jerzy Blaszczyk on 2011-10-31.
+ *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
-Ext.ns('acrm');
+Ext.ns('acrm.data');
 
-// For testing with files instead of services
-testfile = false;
-
-// Server URL
-if (testfile) 
-	acrm.serverURL = 'http://10.46.1.5:804';
-else 
-	acrm.serverURL = 'http://10.46.1.5:804/AdaptiveCrmMobileService.svc'
-
-
-// Ajax request using Sencha framework
-acrm.AjaxSencha = {
+/**
+ *  Ajax request singleton using Sencha framework
+ */
+acrm.data.AjaxSencha = {
 
 	request: function(command, callback, scope) {
 		var me = this,
@@ -32,8 +26,7 @@ acrm.AjaxSencha = {
 
 		ajax.request({
 			method: 'GET',
-			//	jsonData: '{}',
-			url: acrm.serverURL + '/' + command,
+			url: acrm.data.serverURL + '/' + command,
 			success: function(response, opts) {
 				var result = Ext.decode(response.responseText);
 				if (typeof callback == 'function') {
@@ -47,14 +40,16 @@ acrm.AjaxSencha = {
 	},
 };
 
-// Ajax request using standard XmlHttpRequest
-acrm.Ajax = {
+/**
+ *  Ajax request singleton using standard XMLHttpRequest object
+ */
+acrm.data.Ajax = {
 
 	request: function(command, callback, scope) {
 		var me = this;
 
 		var request = new XMLHttpRequest();
-		request.open('GET', acrm.serverURL + '/' + command, true);
+		request.open('GET', acrm.data.serverURL + '/' + command, true);
 		request.onreadystatechange = function(aEvt) {
 			if (request.readyState == 4) {
 				if (request.status == 200) {
@@ -72,14 +67,16 @@ acrm.Ajax = {
 };
 
 /**	
-* Synchronizer sigleton - proxy to remote data 
-* synchronization services
-*/
-
-acrm.Synchronizer = {
+ *  Synchronizer sigleton - proxy to remote data synchronization services
+ */
+acrm.data.Synchronizer = {
 
 
-	// Download data with GetProcessingOrder service
+	/**
+	 *  Download processing order structure
+	 *  @param {Function} function called after succesfull download 
+	 *  @scope {Object} object scope for calling callback function
+	 */
 	getProcessingOrder: function(callback, scope) {
 		var me = this,
 			ajax;
@@ -92,13 +89,17 @@ acrm.Synchronizer = {
 		};
 
 		if (me.processingOrder == undefined) {
-			acrm.Ajax.request('GetProcessingOrder' + (testfile ? '.json' : ''), onSuccess);
+			acrm.data.Ajax.request('GetProcessingOrder' + (acrm.data.useFiles ? '.json' : ''), onSuccess);
 		} else {
 			callback.call(scope || me, me.processingOrder);
 		}
 	},
 
-	// Download data with GetInstall service
+	/**
+	 *  Download data changes from server
+	 *  @param {Function} function called after succesfull download 
+	 *  @scope {Object} object scope for calling callback function
+	 */
 	getInstall: function(callback, scope) {
 		var me = this,
 			ajax;
@@ -111,13 +112,19 @@ acrm.Synchronizer = {
 		};
 
 		if (this.install == undefined) {
-			acrm.Ajax.request('TestInstall' + (testfile ? '.json' : ''), onSuccess);
+			acrm.data.Ajax.request('TestInstall' + (acrm.data.useFiles ? '.json' : ''), onSuccess);
 		} else {
 			callback.call(scope || me, me.install);
 		}
 	},
 
-	// Download data changes and insert into local SQLite database
+	/**
+	 *  Update local database with changes from server
+	 *  Method downloads processing order and data. After download data is inserted into
+	 *  local SQLite database.
+	 *  @param {Function} function called after succesfull operation 
+	 *  @scope {Object} object scope for calling callback function
+	 */
 	download: function(callback, scope) {
 		var me = this,
 			ajax, conn, count = 0,
@@ -138,7 +145,7 @@ acrm.Synchronizer = {
 		};
 
 		var onInstall = function(result) {
-			conn = acrm.Database.getProxy();
+			conn = acrm.data.Database.getProxy();
 
 			for (i = 0; i < me.processingOrder.length; i++) {
 				table = me.processingOrder[i];
