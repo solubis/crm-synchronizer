@@ -15,6 +15,7 @@ acrm.data.Database = (function() {
 
 	// Name of database column for primary key
 	var idProperty = 'OBJECT_ID';
+	var user = undefined;
 
 	// Instance of database proxy object 
 	var proxy = new acrm.data.Proxy({
@@ -50,6 +51,27 @@ acrm.data.Database = (function() {
 
 	var module = {
 
+		/**
+		 *  Get user currently logged in  
+		 *  @return {String}  User login
+		 */
+		getUser: function(){
+			
+			if (user === undefined){
+				throw 'User undefined - first set user by logging in';
+			}
+			
+			return user;
+		},
+		
+		/**
+		 *  Set user currently logged in  
+		 *  @param {String}  User login
+		 */
+		setUser: function(login){
+			user = login;
+		},
+		
 		/**
 		 *  Get database proxy instance  
 		 *  @return {acrm.data.Proxy} Proxy instance
@@ -127,15 +149,15 @@ acrm.data.Database = (function() {
 
 			var createDatabase = function() {
 				for (var i = 0; i < ddl.length; i++) {
-					proxy.queryDB(ddl[i].drop, Ext.emptyFn, Ext.emptyFn);
-					proxy.queryDB(ddl[i].create, onSuccess, onError);
+					proxy.queryDB(ddl[i].drop, [], Ext.emptyFn, Ext.emptyFn);
+					proxy.queryDB(ddl[i].create, [], onSuccess, onError);
 				}
 			}
 
 			if (force) {
 				createDatabase();
 			} else {
-				proxy.queryDB('SELECT * FROM PRODUCT LIMIT 1', onSkip, createDatabase);
+				proxy.queryDB('SELECT * FROM PRODUCT LIMIT 1', [], onSkip, createDatabase);
 			}
 		}
 

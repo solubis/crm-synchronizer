@@ -9,26 +9,43 @@
 
 Ext.ns('acrm.data');
 
+Date.prototype.toJSON = function(key) {
+
+	function f(n) {
+		return n < 10 ? '0' + n : n;
+	}
+
+	return isFinite(this.valueOf()) ? this.getFullYear() + '-' + f(this.getMonth() + 1) + '-' + f(this.getDate()) + ' ' + f(this.getHours()) + ':' + f(this.getMinutes()) + ':' + f(this.getSeconds()) : null;
+};
+
 /**
  *  Ajax request singleton using Sencha framework
  */
-acrm.data.AjaxSencha = {
+acrm.data.Ajax = {
 
-	request: function(command, callback, scope) {
+	request: function(command, params, callback, scope) {
 		var me = this,
-			ajax;
+			ajax, user;
+
+		user = acrm.data.Database.getUser();
+
+		Ext.apply(params, {
+			login: user
+		});
 
 		ajax = new Ext.data.Connection({
 			useDefaultXhrHeader: false,
-			autoAbort: false,
-			disableCaching: true
+			autoAbort: true,
+			disableCaching: false
 		});
 
 		ajax.request({
-			method: 'GET',
+			method: 'POST',
+			jsonData: params,
 			url: acrm.data.serverURL + '/' + command,
 			success: function(response, opts) {
 				var result = Ext.decode(response.responseText);
+
 				if (typeof callback == 'function') {
 					callback.call(scope || me, result);
 				}
@@ -43,7 +60,7 @@ acrm.data.AjaxSencha = {
 /**
  *  Ajax request singleton using standard XMLHttpRequest object
  */
-acrm.data.Ajax = {
+acrm.data.AjaxXHR = {
 
 	request: function(command, callback, scope) {
 		var me = this;
@@ -71,7 +88,6 @@ acrm.data.Ajax = {
  */
 acrm.data.Synchronizer = {
 
-
 	/**
 	 *  Download processing order structure
 	 *  @param {Function} function called after succesfull download 
@@ -82,6 +98,11 @@ acrm.data.Synchronizer = {
 			ajax;
 
 		var onSuccess = function(result) {
+
+			if (!result.GetProcessingOrderResult.Success) {
+				throw new Error(result.GetProcessingOrderResult.ErrorMessage);
+			}
+
 			me.processingOrder = result.GetProcessingOrderResult.Value;
 			if (typeof callback == 'function') {
 				callback.call(scope || me, me.processingOrder);
@@ -89,7 +110,8 @@ acrm.data.Synchronizer = {
 		};
 
 		if (me.processingOrder == undefined) {
-			acrm.data.Ajax.request('GetProcessingOrder' + (acrm.data.useFiles ? '.json' : ''), onSuccess);
+			acrm.data.Ajax.request('GetProcessingOrder' + (acrm.data.useFiles ? '.json' : ''), {},
+			onSuccess);
 		} else {
 			callback.call(scope || me, me.processingOrder);
 		}
@@ -102,20 +124,22 @@ acrm.data.Synchronizer = {
 	 */
 	getInstall: function(callback, scope) {
 		var me = this,
-			ajax;
+			ajax, result;
 
-		var onSuccess = function(result) {
-			me.install = result.TestInstallResult.Value;
+		var onSuccess = function(r) {
+			result = r.TestInstallResult;
+
+			if (!result.Success) {
+				throw new Error(result.ErrorMessage);
+			}
+
 			if (typeof callback == 'function') {
-				callback.call(scope || me, me.install);
+				callback.call(scope || me, result);
 			}
 		};
 
-		if (this.install == undefined) {
-			acrm.data.Ajax.request('TestInstall' + (acrm.data.useFiles ? '.json' : ''), onSuccess);
-		} else {
-			callback.call(scope || me, me.install);
-		}
+		acrm.data.Ajax.request('TestInstall' + (acrm.data.useFiles ? '.json' : ''), {},
+		onSuccess);
 	},
 
 	/**
@@ -127,9 +151,15 @@ acrm.data.Synchronizer = {
 	 */
 	download: function(callback, scope) {
 		var me = this,
-			ajax, conn, count = 0,
-			i, j, table, rows, insertSQL, placeholders = [],
-			values = [];
+			ajax, conn, count = 0;
+
+		var isDate = function(p) {
+			return typeof p == 'string' && p.match(/\/Date\((-?\d+).*/g);
+		};
+
+		var convertDate = function(p) {
+			return Date.parseDate(p, "M$").toJSON();
+		};
 
 		var onSuccess = function(tx, rs) {
 			count--;
@@ -140,14 +170,20 @@ acrm.data.Synchronizer = {
 			}
 		};
 
-		var onError = function(tx, err) {
-			conn.throwDbError(tx, err);
+		var onError = function(sql, params) {
+			return function(tx, err) {
+				conn.throwDbError(tx, err, sql, params);
+			}
 		};
 
 		var onInstall = function(result) {
+			var table, rows, columns, sql, placeholders = [],
+				values = [];
+
+			result = result.Value;
 			conn = acrm.data.Database.getProxy();
 
-			for (i = 0; i < me.processingOrder.length; i++) {
+			for (var i = 0; i < me.processingOrder.length; i++) {
 				table = me.processingOrder[i];
 				rows = result[table].Values;
 				count = count + rows.length;
@@ -155,20 +191,22 @@ acrm.data.Synchronizer = {
 
 			conn.db.transaction(function(tx) {
 
-				for (i = 0; i < me.processingOrder.length; i++) {
+				for (var i = 0; i < me.processingOrder.length; i++) {
 					table = me.processingOrder[i];
 					rows = result[table].Values;
 					columns = result[table].Columns.slice(1).join(',');
 
-					for (j = 0; j < rows.length; j++) {
+					for (var j = 0; j < rows.length; j++) {
 						placeholders = [];
 						values = rows[j].slice(1);
-						for (k = 0; k < values.length; k++) {
+						for (var k = 0; k < values.length; k++) {
+							if (isDate(values[k])) {
+								values[k] = convertDate(values[k]);
+							}
 							placeholders.push('?');
 						}
-						insertSQL = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders.join(',') + ")";
-
-						tx.executeSql(insertSQL, values, onSuccess, onError);
+						sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders.join(',') + ")";
+						tx.executeSql(sql, values, onSuccess, onError(sql, values));
 					}
 				}
 			});
@@ -179,5 +217,6 @@ acrm.data.Synchronizer = {
 		};
 
 		me.getProcessingOrder(onProcessingOrder);
-	}
+	},
+
 };

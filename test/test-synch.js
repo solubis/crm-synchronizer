@@ -24,7 +24,7 @@ describe("Synchronization", function() {
 	};
 	
 	// For testing with files instead of services
-	acrm.data.useFiles = true;
+	acrm.data.useFiles = false;
 
 	// Server URL
 	if (acrm.data.useFiles) 
@@ -32,7 +32,12 @@ describe("Synchronization", function() {
 	else 
 		acrm.data.serverURL = 'http://10.46.1.5:804/AdaptiveCrmMobileService.svc';
 
+	acrm.data.Database.setUser('Jenna Waite');
 	proxy = acrm.data.Database.getProxy();
+	
+	AOP.object(proxy);
+	AOP.enable();
+	proxy.logSQL = false;
 
 	proxy.on('complete', function() {
 		isCompleted = true;

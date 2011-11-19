@@ -20,9 +20,8 @@ describe("Web SQL Proxy", function() {
 	beforeEach(resetResults);
 
 	proxy = acrm.data.Database.getProxy();
-	AOP.object(proxy);
-	AOP.enable();
-	proxy.logSQL = true;
+
+	proxy.logSQL = false;
 	proxy.on('complete', onSuccess);
 
 	it("Initialize Database", function() {

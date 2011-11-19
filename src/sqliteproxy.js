@@ -192,11 +192,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			}
 		};
 
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
-		me.queryDB(sql, onSuccess, onError);
+		me.queryDB(sql, [], onSuccess);
 	},
 
 	/**
@@ -223,10 +219,6 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			}
 		};
 
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
 		fields.push(primarykey);
 		placeholders.push('?');
 		values.push(id);
@@ -240,7 +232,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		}
 
 		var sql = 'INSERT INTO ' + tablename + '(' + fields.join(',') + ') VALUES (' + placeholders.join(',') + ')';
-		me.queryDB(sql, onSuccess, onError, values);
+		me.queryDB(sql, values, onSuccess);
 
 		return true;
 	},
@@ -273,10 +265,6 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			}
 		};
 
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
 		for (var i in newData) {
 			if (i != primarykey) {
 				pairs.push(i + ' = ?');
@@ -286,7 +274,8 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 		values.push(id);
 		var sql = 'UPDATE ' + tablename + ' SET ' + pairs.join(',') + ' WHERE ' + primarykey + ' = ?';
-		me.queryDB(sql, onSuccess, onError, values);
+		me.queryDB(sql, values, onSuccess);
+		
 		return true;
 	},
 
@@ -309,13 +298,9 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			}
 		};
 
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
 		var sql = 'DELETE FROM ' + tablename + ' WHERE ' + primarykey + ' = ?';
 		values.push(id);
-		me.queryDB(sql, onSuccess, onError, values);
+		me.queryDB(sql, values, onSuccess);
 		return true;
 	},
 
@@ -384,24 +369,15 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	 *  @param {Function} errorcallback function to call after error
 	 *  @param {Array} params Array of parameters passed to SQL function (when used '?' placeholders)
 	 */
-	queryDB: function(sql, successcallback, errorcallback, params) {
+	queryDB: function(sql, params, successcallback, errorcallback) {
 		if (this.logSQL) console.log('SQLite: ' + sql + ' [' + (params || '') + ']');
 
 		var me = this;
 
 		me.db.transaction(function(tx) {
 			tx.executeSql(
-			sql, (params ? params : []), successcallback || Ext.emptyFn, errorcallback || Ext.emptyFn);
+			sql, params, successcallback || Ext.emptyFn, errorcallback || me.onError(sql, params));
 		});
-	},
-
-	/**
-	 *  Output Query Error
-	 *  @param {Object} tx Transaction
-	 *  @param {Object} rs Response
-	 */
-	throwDbError: function(tx, err) {
-		console.log('SQLite Proxy Error: ' + err.message);
 	},
 
 	/**
@@ -420,12 +396,33 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			}
 		};
 
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
-		me.queryDB(sql, onSuccess, onError);
+		me.queryDB(sql, [], onSuccess);
 		return true;
+	},
+	
+	/**
+	 *  Error callback factory, returns function that knows about SQL and its params
+	 *  @param {String} sql SQL statement
+	 *  @param {Array} values array of values for SQL statement
+	 *  @return {Function} callback function with sql and params 
+	 */
+	onError: function(sql, values) {
+		var me = this;
+		
+		return function(tx, err) {
+			me.throwDbError(tx, err, sql, values);
+		};
+	},
+	
+	/**
+	 *  Output Query Error
+	 *  @param {Object} tx Transaction
+	 *  @param {Object} rs Response
+	 */
+	throwDbError: function(tx, err, sql, params) {
+		var error = new Error(err.message + 'in SQL : ' + sql + ' [' + (params || []) + ']');
+		error.name = 'Database Error';
+		throw error;
 	},
 
 	/**
@@ -472,11 +469,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			}
 		};
 
-		var onError = function(tx, err) {
-			me.throwDbError(tx, err);
-		};
-
-		me.queryDB('SELECT COUNT(*) FROM ' + tablename, onSuccess, onError);
+		me.queryDB('SELECT COUNT(*) FROM ' + tablename, [], onSuccess);
 	},
 
 	/**	
