@@ -1,0 +1,16 @@
+ErrorDocument 404 "Error 404, but .htaccess works"
+AddType text/cache-manifest .manifest
+Header set Access-Control-Allow-Origin *
+Header set Access-Control-Allow-Methods "GET,POST"
+Header set Access-Control-Allow-Headers "x-prototype-version,x-requested-with,content-type"
+
+<FilesMatch "\.(ico|jpg|jpeg|png|gif|js|css|html|manifest)$">
+  ExpiresDefault A2419200
+  Header append Cache-Control "public"
+</FilesMatch>
+
+<Files cache.manifest>
+	ExpiresActive On
+	ExpiresDefault "access"
+</Files>
+

@@ -1,0 +1,24 @@
+{
+    "ErrorCode":0,
+    "ErrorMessage":null,
+    "Success":true,
+    "Tables":[
+        {
+            "Name":"Task",
+            "Columns":"'id', 'name', 'description', 'start', 'end', 'estimate'",
+            "OperationsCount":10,
+            "Inserts":[
+                "'8addd733-de5f-e011-9845-444553544200', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544201', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544202', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544203', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544204', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544205', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544206', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544207', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544208', 'Something to do', 'Something to do description', 1, 2, 12",
+                "'8addd733-de5f-e011-9845-444553544209', 'Something to do', 'Something to do description', 1, 2, 12"
+            ]
+        }
+    ]
+}
