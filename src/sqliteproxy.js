@@ -14,7 +14,9 @@ Ext.ns('acrm.data');
  *  @class acrm.data.Proxy
  */
 
-acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
+Ext.define('acrm.data.Proxy', {
+	extend: 'Ext.data.Proxy', 
+	xtype: 'sqliteproxy',
 
 	/**
 	 *  @type {String} version
@@ -39,6 +41,8 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	 *  Max storage size in bytes
 	 */
 	dbSize: 5 * 1024 * 1024,
+	
+	logSQL: false,
 
 	/**
 	 *  @param {Object} config Configuration object
@@ -47,9 +51,9 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	constructor: function(config) {
 		var me = this;
 
-		this.addEvents('complete');
+		//this.addEvents('updated');
 
-		Ext.data.Proxy.superclass.constructor.call(me, config);
+		this.callParent(arguments);
 
 		me.db = openDatabase(me.dbName, me.dbVersion, me.dbDescription, me.dbSize);
 	},
@@ -74,7 +78,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		me);
 
 		batch.on('complete', function() {
-			me.fireEvent('complete', me);
+			me.fireEvent('updated', me);
 		},
 		me);
 
@@ -121,6 +125,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		var onSuccess = function() {
 			count--;
 			if (count <= 0) {
+				console.log('operation completed : ' + operation.action + ' ' + operation.id);
 				operation.setCompleted();
 				operation.setSuccessful();
 				if (typeof callback == 'function') {
@@ -132,7 +137,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		operation.setStarted();
 
 		if (operation.action === 'read') {
-			me.readRecord(operation, onSuccess);
+			me.readRecords(operation, onSuccess);
 			return;
 		}
 
@@ -148,51 +153,215 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			case "destroy":
 				me.destroyRecord(record, onSuccess);
 				break;
-			};
+			}
 		}
 	},
 
 	/**
-	 *  Read all records from table
+	 *  Read single records or all records from table
 	 *  @private
 	 *  @param {Ext.data.Model} record
 	 *  @callback {Function} callback function
 	 *  @scope {Object} scope of callback function
 	 */
-	readRecord: function(operation, callback) {
+	readRecords: function(operation, callback) {
 		var me = this;
 
 		var tablename = me.getTableName(),
-			sql = me.dbQuery || 'SELECT * FROM ' + tablename;
+			orderBy = [],
+			sql = me.sql || 'SELECT * FROM ' + tablename,
+			where = '',
+			limit = '',
+			store, record;
 
-		var onSuccess = function(tx, results) {
-			var records = [],
-				storedatas = [],
-				rows = results.rows;
-
-			for (var i = 0; i < rows.length; i++) {
-				records.push(rows.item(i));
+		if (operation.id !== undefined) {
+			if (operation.id === '') {
+				operation.resultSet = new Ext.data.ResultSet({
+					records: [],
+					total: 0,
+					loaded: true
+				});
+				if (typeof callback == 'function') {
+					callback.call(me);
+				}
+				return;
 			}
 
-			if (results.rows && records.length) {
-				for (var i = 0; i < results.rows.length; i++) {
-					var storedata = new me.model(records[i]);
-					storedatas.push(storedata);
+			store = Ext.StoreMgr.lookup(tablename);
+
+			if (store) {
+				record = store.getById(operation.id);
+
+				if (record) {
+					operation.resultSet = new Ext.data.ResultSet({
+						records: [record],
+						total: 1,
+						loaded: true
+					});
+					if (typeof callback == 'function') {
+						callback.call(me);
+					}
+					return;
 				}
 			}
 
+			where = ' WHERE ' + me.getIdProperty() + ' = "' + operation.id + '" ';
+		}
+
+		if (operation.limit) {
+			limit = ' LIMIT ' + operation.limit + ' OFFSET ' + operation.start;
+		}
+
+		if (operation.sorters && operation.sorters.length > 0) {
+			sql = sql + ' ORDER BY ';
+
+			for (var i = 0; i < operation.sorters.length; i++) {
+				orderBy.push(operation.sorters[i].property + ' ' + operation.sorters[i].direction);
+			}
+
+			sql = sql + orderBy.join(',');
+		}
+
+		sql = sql + where + limit;
+
+		var onSuccess = function(tx, results) {
+			var records = [],
+				record, rows = results.rows,
+				length = rows.length,
+				count = length;
+
+			for (var i = 0; i < length; i++) {
+				record = new me.model(rows.item(i));
+				records.push(record);
+			}
+
 			operation.resultSet = new Ext.data.ResultSet({
-				records: storedatas,
-				total: storedatas.length,
+				records: records,
+				total: records.length,
+				size: 666,
 				loaded: true
 			});
 
-			if (typeof callback == 'function') {
-				callback.call(me);
+			if (length === 0) {
+				if (typeof callback == 'function') {
+					callback.call(me);
+				}
+			}
+
+			var onRecordLoaded = function() {
+				count--;
+				if (count <= 0) {
+					if (typeof callback == 'function') {
+						callback.call(me);
+					}
+				}
+			};
+
+			for (i = 0; i < length; i++) {
+				record = records[i];
+				me.getAssociatedRecords(record, onRecordLoaded);
 			}
 		};
 
-		me.queryDB(sql, [], onSuccess);
+		me.runSQL(sql, [], onSuccess);
+	},
+
+	getAssociatedRecords: function(record, callback) {
+		var me = this;
+
+		var data = {},
+			associations = record.associations,
+			count = associations.getCount();
+
+		if (count === 0) {
+			if (typeof callback == 'function') {
+				callback.call(me);
+			}
+			return;
+		}
+
+
+
+		function checkCounter() {
+			count--;
+			if (count <= 0) {
+				if (typeof callback == 'function') {
+					callback.call(me);
+				}
+			}
+		};
+
+		associations.each(function(association) {
+			if (association.type === "belongsTo") {
+				var store, name = association.associatedName,
+					child = record.data[name],
+					childId = record.data[name + '_ID'],
+					getterName = association.getterName;
+
+				if (!childId) {
+					checkCounter();
+					return;
+				}
+
+				if (!child) {
+					child = me.getRecordById(name, childId);
+
+					if (child === undefined) {
+						child = {};
+						me.cache.add(childId, child);
+						record.data[name] = child;
+						record[getterName].call(record, function(result) {
+							var id;
+							if (result !== undefined) {
+								id = result.getId();
+								Ext.apply(me.cache.getByKey(id), result.data);
+								checkCounter();
+							}
+						});
+						return;
+					}
+				}
+
+				if (child) {
+					record.data[name] = child;
+					checkCounter();
+				}
+			}
+
+			if (association.type === "hasMany") {
+				var store = record[association.name].call(record);
+				store.load.call(store, function(records, operation, success) {
+					record.data[association.name] = records;
+					checkCounter();
+				});
+			}
+		},
+		this);
+	},
+
+	getRecordById: function(modelname, id) {
+		var me = this,
+			store, record;
+
+		if (id == undefined) {
+			return;
+		}
+
+		me.cache = me.cache || new Ext.util.MixedCollection();
+
+		if (me.cache.containsKey(id)) {
+			record = me.cache.get(id);
+		} else {
+			store = Ext.StoreMgr.lookup(modelname);
+			if (store) {
+				record = store.getById(id);
+				if (record) {
+					me.cache.add(id, record.data);
+				}
+			}
+		}
+
+		return record;
 	},
 
 	/**
@@ -232,7 +401,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		}
 
 		var sql = 'INSERT INTO ' + tablename + '(' + fields.join(',') + ') VALUES (' + placeholders.join(',') + ')';
-		me.queryDB(sql, values, onSuccess);
+		me.runSQL(sql, values, onSuccess);
 
 		return true;
 	},
@@ -248,34 +417,30 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			primarykey = me.getIdProperty(),
 			id = record.get(primarykey),
 			modifiedData = record.modified,
+			fields = me.getModel().prototype.fields,
 			newData = record.data,
 			tablename = me.getTableName(),
 			pairs = [],
 			values = [];
 
 		var onSuccess = function(tx, rs) {
-			//add new record if id doesn't exist
-			if (rs.rowsAffected == 0) {
-				me.createRecord(record, tablename, primarykey, callback);
-			} else {
-
-				if (typeof callback == 'function') {
-					callback.call(me);
-				}
+			if (typeof callback == 'function') {
+				callback.call(me);
 			}
 		};
 
-		for (var i in newData) {
-			if (i != primarykey) {
-				pairs.push(i + ' = ?');
-				values.push(newData[i]);
+		for (var field in newData) {
+			if (field != primarykey && fields.containsKey(field)) {
+				pairs.push(field + ' = ?');
+				values.push(newData[field]);
 			}
-		};
+		}
 
 		values.push(id);
+
 		var sql = 'UPDATE ' + tablename + ' SET ' + pairs.join(',') + ' WHERE ' + primarykey + ' = ?';
-		me.queryDB(sql, values, onSuccess);
-		
+		me.runSQL(sql, values, onSuccess);
+
 		return true;
 	},
 
@@ -300,7 +465,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 
 		var sql = 'DELETE FROM ' + tablename + ' WHERE ' + primarykey + ' = ?';
 		values.push(id);
-		me.queryDB(sql, values, onSuccess);
+		me.runSQL(sql, values, onSuccess);
 		return true;
 	},
 
@@ -347,7 +512,7 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 			modelFields = m.prototype.fields.items;
 
 		Ext.each(modelFields, function(item, index) {
-			if (item.isTableField == false) {
+			if (item.isTableField === false) {
 				removedField.push(item.name);
 			}
 		});
@@ -369,8 +534,8 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	 *  @param {Function} errorcallback function to call after error
 	 *  @param {Array} params Array of parameters passed to SQL function (when used '?' placeholders)
 	 */
-	queryDB: function(sql, params, successcallback, errorcallback) {
-		if (this.logSQL) console.log('SQLite: ' + sql + ' [' + (params || '') + ']');
+	runSQL: function(sql, params, successcallback, errorcallback) {
+		if (this.logSQL) console.log('[SQL]: ' + sql + ' [' + (params || '') + ']');
 
 		var me = this;
 
@@ -381,26 +546,6 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	},
 
 	/**
-	 *  Destroys all records stored in the proxy 
-	 *  @param {String} tablename Name of database table 
-	 *  @callback {Function} callback function
-	 *  @scope {Object} scope of callback function
-	 */
-	truncate: function(tablename, callback, scope) {
-		var me = this,
-			sql = 'DELETE FROM ' + tablename || me.dbTable;
-
-		var onSuccess = function(tx, rs) {
-			if (typeof callback == "function") {
-				callback.call(scope || me, result);
-			}
-		};
-
-		me.queryDB(sql, [], onSuccess);
-		return true;
-	},
-	
-	/**
 	 *  Error callback factory, returns function that knows about SQL and its params
 	 *  @param {String} sql SQL statement
 	 *  @param {Array} values array of values for SQL statement
@@ -408,19 +553,19 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 	 */
 	onError: function(sql, values) {
 		var me = this;
-		
+
 		return function(tx, err) {
 			me.throwDbError(tx, err, sql, values);
 		};
 	},
-	
+
 	/**
 	 *  Output Query Error
 	 *  @param {Object} tx Transaction
 	 *  @param {Object} rs Response
 	 */
 	throwDbError: function(tx, err, sql, params) {
-		var error = new Error(err.message + 'in SQL : ' + sql + ' [' + (params || []) + ']');
+		var error = new Error(err.message + ' in SQL: ' + sql + ' [' + (params || []) + ']');
 		error.name = 'Database Error';
 		throw error;
 	},
@@ -453,25 +598,6 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		return model.prototype.idProperty;
 	},
 
-	/**
-	 *  Get number of records in table
-	 *  @callback {Function} callback function
-	 *  @scope {Object} scope of callback function
-	 */
-	getTableSize: function(tablename, callback, scope) {
-		var me = this;
-
-		var onSuccess = function(tx, rs) {
-			var result = rs.rows.item(0)['COUNT(*)'];
-
-			if (typeof callback == "function") {
-				callback.call(scope || me, result);
-			}
-		};
-
-		me.queryDB('SELECT COUNT(*) FROM ' + tablename, [], onSuccess);
-	},
-
 	/**	
 	 * Helper function for generating GUID   
 	 */
@@ -486,8 +612,10 @@ acrm.data.Proxy = Ext.extend(Ext.data.Proxy, {
 		var me = this;
 
 		return (me.getRandomString() + me.getRandomString() + "-" + me.getRandomString() + "-" + me.getRandomString() + "-" + me.getRandomString() + "-" + me.getRandomString() + me.getRandomString() + me.getRandomString()).toUpperCase();
+	},
+
+	setSQL: function(sql) {
+		this.sql = sql;
 	}
 
 });
-
-Ext.data.ProxyMgr.registerType("sqlitestorage", acrm.data.Proxy);

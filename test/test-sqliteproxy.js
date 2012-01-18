@@ -1,15 +1,22 @@
-describe("Web SQL Proxy", function() {
-
-	var isCompleted, proxy, result, store, numberOfRecords = 5,
-		timeout = 1000;
+xdescribe("Web SQL Proxy", function() {
+	var proxy, result, store, organizationStore, organizationTypeGroupStore, organizationTypeStore, numberOfRecords = 5,
+		timeout = 10000,
+		test = '';
 
 	var requestIsCompleted = function() {
 		return isCompleted;
 	};
 
-	var onSuccess = function(rs) {
-		result = rs;
-		isCompleted = true;
+	var onSuccess = function(operation) {
+		var start = new Date(),
+			end;
+		console.log(operation + ' started');
+		return function(rs) {
+			result = rs;
+			isCompleted = true;
+			end = new Date();
+			console.log(operation + ' completed in ' + (end - start) / 1000 + 's');
+		};
 	};
 
 	var resetResults = function() {
@@ -19,46 +26,71 @@ describe("Web SQL Proxy", function() {
 
 	beforeEach(resetResults);
 
-	proxy = acrm.data.Database.getProxy();
-
-	proxy.logSQL = false;
-	proxy.on('complete', onSuccess);
-
-	it("Initialize Database", function() {
+	it('Drop database', function() {
+		desc = 'Drop database';
 		runs(function() {
-			acrm.data.Database.initDatabase(true, onSuccess);
+			acrm.data.Database.setLogging(true);
+			acrm.data.Database.init();
+			acrm.data.Database.dropDatabase(onSuccess(desc));
 		});
-
-		waitsFor(requestIsCompleted, "end of load", timeout);
+		waitsFor(requestIsCompleted, desc, timeout);
 	});
 
-	it("Create DataStore", function() {
-		store = acrm.data.Database.getStore('PRODUCT');
+	it('Create database', function() {
+		desc = 'Create database';
+		runs(function() {
+			acrm.data.Database.createDatabase(onSuccess(desc));
+		});
+
+		waitsFor(requestIsCompleted, desc, timeout);
+	});
+
+	it("Create DataStores", function() {
+		store = acrm.data.Database.getStore({
+			model: 'PRODUCT'
+		});
+
+		organizationStore = acrm.data.Database.getStore({
+			model: 'ORGANIZATION'
+		//	sql: 'SELECT ' +'ORGANIZATION.ORGANIZATION_TYPE_ID, ' + 'ORGANIZATION.INTERNAL_NAME, ' + 'ORGANIZATION.OBJECT_ID AS TYPE_ID, ' + 'ORGANIZATION_TYPE.NAME AS TYPE_NAME, ' + 'ORGANIZATION_TYPE.OBJECT_ID, '+ 'ORGANIZATION_TYPE_GROUP.NAME AS TYPE_GROUP_NAME ' + 'FROM ORGANIZATION INNER JOIN ORGANIZATION_TYPE ON ORGANIZATION.ORGANIZATION_TYPE_ID = ORGANIZATION_TYPE.OBJECT_ID ' + 'INNER JOIN ORGANIZATION_TYPE_GROUP ON ORGANIZATION_TYPE.ORGANIZATION_TYPE_GROUP_ID = ORGANIZATION_TYPE_GROUP.OBJECT_ID',
+		});
+		
+		organizationTypeGroupStore = acrm.data.Database.getStore({
+			model: 'ORGANIZATION_TYPE_GROUP'
+		});
+		organizationTypeStore = acrm.data.Database.getStore({
+			model: 'ORGANIZATION_TYPE'
+		});
 
 		expect(store.getProxy().getTableName()).toEqual('PRODUCT');
 		expect(store.getProxy().getIdProperty()).toEqual('OBJECT_ID');
+
+		expect(organizationStore.getProxy().getTableName()).toEqual('ORGANIZATION');
+		expect(organizationStore.getProxy().getIdProperty()).toEqual('OBJECT_ID');
 	});
 
-	it("Load DataStore", function() {
+	xit("Load DataStore", function() {
+		desc = 'Load DataStore';
+
 		runs(function() {
-			store.load(onSuccess)
+			store.load(onSuccess(desc));
 		});
 
-		waitsFor(requestIsCompleted, "end of load", timeout);
+		waitsFor(requestIsCompleted, desc, timeout);
 
 		runs(function() {
-			expect(store.getCount()).toEqual(0)
+			expect(store.getCount()).toEqual(0);
 		});
 	});
 
-	it("Truncate Tables", function() {
+	xit("Truncate Tables", function() {
 		runs(function() {
-			proxy.truncate('PRODUCT');
-			proxy.truncate('CHANGE_TRACKING');
+			acrm.data.Database.truncateTable('PRODUCT');
+			acrm.data.Database.truncateTable('CHANGE_TRACKING');
 		});
 
 		runs(function() {
-			proxy.getTableSize('PRODUCT', onSuccess);
+			acrm.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
 		});
 
 		waitsFor(requestIsCompleted, "count rows in table", timeout);
@@ -68,42 +100,42 @@ describe("Web SQL Proxy", function() {
 		});
 	});
 
-	it("Load DataStore Again", function() {
+	xit("Load DataStore Again", function() {
+		desc = "Load store";
 		runs(function() {
-			store.load(onSuccess)
+			store.load(onSuccess(desc));
 		});
 
-		waitsFor(requestIsCompleted, "end of load", timeout);
+		waitsFor(requestIsCompleted, desc, timeout);
 
 		runs(function() {
 			expect(store.getCount()).toEqual(0);
 		});
 	});
 
-	it("Create records", function() {
+	xit("Create records", function() {
 		expect(store.getCount()).toEqual(0);
 		for (var i = 0; i < numberOfRecords; i++) {
 
-			var p = Ext.ModelMgr.create({
+			store.add({
 				NAME: 'Nazwa',
 				IS_ACTIVE: 0,
 				IS_KEY_PRODUCT: 0
-			},
-			'PRODUCT');
-
-			store.add(p);
+			});
 		};
 		expect(store.getCount()).toEqual(numberOfRecords);
 	});
 
-	it("Save records", function() {
+	xit("Save records", function() {
+		desc = 'Save record';
 		expect(store.getCount()).toEqual(numberOfRecords);
 
 		runs(function() {
+			store.getProxy().on('updated', onSuccess('Update operation'));
 			store.sync();
 		});
 
-		waitsFor(requestIsCompleted, "end of sync", timeout * numberOfRecords / 5);
+		waitsFor(requestIsCompleted, desc, timeout * numberOfRecords / 5);
 
 		runs(function() {
 			store.each(function(record) {
@@ -116,7 +148,7 @@ describe("Web SQL Proxy", function() {
 
 		runs(function() {
 			result = undefined;
-			proxy.getTableSize('PRODUCT', onSuccess);
+			acrm.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
 		});
 
 		waitsFor(requestIsCompleted, "count rows in table", timeout);
@@ -126,7 +158,7 @@ describe("Web SQL Proxy", function() {
 		});
 	});
 
-	it("Delete records", function() {
+	xit("Delete records", function() {
 
 		runs(function() {
 			store.removeAt(0);
@@ -140,7 +172,7 @@ describe("Web SQL Proxy", function() {
 
 		runs(function() {
 			result = undefined;
-			proxy.getTableSize('PRODUCT', onSuccess);
+			acrm.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
 		});
 
 		waitsFor(requestIsCompleted, "count rows in table", timeout);
@@ -151,7 +183,7 @@ describe("Web SQL Proxy", function() {
 
 	});
 
-	it("Update records", function() {
+	xit("Update records", function() {
 
 		var id1, id2;
 
@@ -171,7 +203,7 @@ describe("Web SQL Proxy", function() {
 		runs(resetResults);
 
 		runs(function() {
-			store.load(onSuccess);
+			store.load(onSuccess('Loading store'));
 		});
 
 		waitsFor(requestIsCompleted, "and of load", timeout);
@@ -181,6 +213,98 @@ describe("Web SQL Proxy", function() {
 			var r2 = store.getById(id2);
 			expect(r1.get('NAME')).toEqual('NowaNazwa');
 			expect(r2.get('NAME')).toEqual('NowaNazwa');
+		});
+
+	});
+
+	////////////////////////////////
+	//////    ASSOCIATIONS    //////
+	////////////////////////////////
+	it("Create records", function() {
+
+		expect(organizationStore.getCount()).toEqual(0);
+
+		runs(resetResults);
+
+		runs(function() {
+
+			var typeGroup = organizationTypeGroupStore.add({
+				NAME: 'FARM'
+			})[0];
+
+			var type = organizationTypeStore.add({
+				NAME: 'Type1'
+			})[0];
+
+			typeGroup.save({
+				callback: function(r) {
+					type.set('ORGANIZATION_TYPE_GROUP_ID', r.get('OBJECT_ID'));
+					type.save({
+						callback: function(t) {
+							for (var i = 0; i < numberOfRecords; i++) {
+								var r = organizationStore.add({
+									INTERNAL_NAME: 'Nazwa'
+								})[0];
+								r.setType(t.get('OBJECT_ID'));
+							};
+							organizationStore.getProxy().on('updated', onSuccess('Store 2 Updated'));
+							organizationStore.sync();
+						}
+					});
+				}
+			});
+
+		});
+
+		waitsFor(requestIsCompleted, "saving", timeout);
+		runs(function() {
+			expect(organizationStore.getCount()).toEqual(numberOfRecords);
+		});
+	});
+	
+	it("Load DataStore Again", function() {
+		desc = "Load store";
+		runs(function() {
+			organizationStore.load(onSuccess(desc));
+		});
+
+		waitsFor(requestIsCompleted, desc, timeout);
+
+		runs(function() {
+			expect(organizationStore.getCount()).toEqual(numberOfRecords);
+		});
+	});
+
+	xit("Update records", function() {
+
+		var id1, id2;
+
+		runs(function() {
+			var r1 = organizationStore.getAt(0);
+			var r2 = organizationStore.getAt(1);
+			id1 = r1.get('OBJECT_ID');
+			id2 = r2.getId();
+			r1.set('INTERNAL_NAME', 'NowaNazwa');
+			organizationStore.sync();
+			r2.set('INTERNAL_NAME', 'NowaNazwa');
+			r2.save();
+		});
+
+		waitsFor(requestIsCompleted, "end of sync", timeout);
+
+		runs(resetResults);
+
+		runs(function() {
+			organizationStore.load(onSuccess('Loading store'));
+		});
+
+		waitsFor(requestIsCompleted, "end of load", timeout);
+
+		runs(function() {
+			var r1 = organizationStore.getById(id1);
+			var r2 = organizationStore.getById(id2);
+			expect(r1.get('INTERNAL_NAME')).toEqual('NowaNazwa');
+			expect(r2.get('INTERNAL_NAME')).toEqual('NowaNazwa');
 		});
 
 	});
