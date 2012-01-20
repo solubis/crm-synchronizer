@@ -527,23 +527,7 @@ Ext.define('solubis.data.Proxy', {
 		return newrecords;
 	},
 
-	/**	
-	 *  Run SQL statement
-	 *  @param {String} sql SQL statement
-	 *  @param {Function} successcallback function to call after succesfull SQL operation
-	 *  @param {Function} errorcallback function to call after error
-	 *  @param {Array} params Array of parameters passed to SQL function (when used '?' placeholders)
-	 */
-	runSQL: function(sql, params, successcallback, errorcallback) {
-		if (this.logSQL) console.log('[SQL]: ' + sql + ' [' + (params || '') + ']');
 
-		var me = this;
-
-		me.db.transaction(function(tx) {
-			tx.executeSql(
-			sql, params, successcallback || Ext.emptyFn, errorcallback || me.onError(sql, params));
-		});
-	},
 
 	/**
 	 *  Error callback factory, returns function that knows about SQL and its params
@@ -557,17 +541,6 @@ Ext.define('solubis.data.Proxy', {
 		return function(tx, err) {
 			me.throwDbError(tx, err, sql, values);
 		};
-	},
-
-	/**
-	 *  Output Query Error
-	 *  @param {Object} tx Transaction
-	 *  @param {Object} rs Response
-	 */
-	throwDbError: function(tx, err, sql, params) {
-		var error = new Error(err.message + ' in SQL: ' + sql + ' [' + (params || []) + ']');
-		error.name = 'Database Error';
-		throw error;
 	},
 
 	/**
@@ -619,3 +592,137 @@ Ext.define('solubis.data.Proxy', {
 	}
 
 });
+
+
+solubis.data.ProxyHelper = (function() {
+	
+	/**
+	 *  Register model
+	 *  @param {String} model name
+	 *  @private
+	 */
+	var registerModel = function(modelname) {
+		var cfg = {
+			extend: 'Ext.data.Model'
+		};
+
+		if (solubis.data.Tables[modelname] === undefined) {
+			throw new Error('Model not defined in models.js : ' + modelname);
+		}
+
+		cfg.idProperty = idProperty;
+		Ext.apply(cfg, solubis.data.Tables[modelname]);
+		Ext.apply(cfg, solubis.data.Associations[modelname]);
+		cfg.proxy = new module.getProxy(modelname);
+
+		Ext.define(modelname, cfg);
+	};
+
+	/**
+	 *  Register all models from models.js
+	 *  @private
+	 */
+	var registerModels = function() {
+		for (table in solubis.data.Tables) {
+			if (solubis.data.Tables[table].fields) {
+				registerModel(table);
+			}
+		}
+	};
+	
+	/**
+	 *  Get database proxy instance
+	 *  @return {solubis.data.Proxy} Proxy instance
+	 */
+	getProxy: function(modelname) {
+		var cfg = {};
+		Ext.apply(cfg, dbConfig);
+		if (modelname !== undefined) {
+			cfg.name = modelname;
+		} else {
+			cfg.name = 'SQLiteProxy';
+		}
+		return new solubis.data.Proxy(cfg);
+	},
+
+	/**
+	 *  Get model instance or register it if not found
+	 *  @param {String} model name
+	 *  @return {Ext.data.Model} model instance
+	 */
+	getModel: function(modelname) {
+		var model;
+
+		model = Ext.ModelMgr.getModel(modelname);
+
+		if (model === undefined) {
+			throw new Error('Model ' + modelname + ' not registered with Model Manager');
+		}
+
+		return model;
+	},
+	
+	load: function(models, callback, scope) {
+		var me = this;
+
+		if (!Ext.isArray(models)) {
+			models = [models];
+		}
+
+		var length = models.length,
+			i, model, store, count = length;
+
+		var onSuccess = function() {
+			count--;
+			if (count === 0) {
+				if (typeof callback == 'function') {
+					callback.call(scope || me);
+				}
+			}
+		};
+
+		for (var i = 0; i < length; i++) {
+			model = models[i];
+			store = me.getStore({
+				model: model,
+				pageSize: null
+			});
+			store.load(onSuccess);
+		}
+	},
+
+	/**
+	 *  Get store instance or register it if not found
+	 *  @param {String} model name
+	 *  @return {Ext.data.Store} store instance
+	 */
+	getStore: function(params) {
+		var store, config;
+
+		if (typeof params === "string") {
+			params = {
+				model: params
+			};
+		}
+
+		if (!params.model) {
+			throw new Error('You have to pass model name with store config');
+		}
+
+		store = Ext.StoreMgr.lookup(params.model);
+
+		if (store == undefined) {
+			config = {
+				storeId: params.model,
+				model: this.getModel(params.model)
+			};
+			Ext.apply(config, params);
+			store = new Ext.data.Store(config);
+			store.getProxy().setSQL(params.sql);
+		}
+
+		return store;
+	},
+	
+})();
+

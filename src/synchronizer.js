@@ -7,67 +7,12 @@
  *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
-Ext.ns('solubis.data');
-
-Date.prototype.toJSON = function(key) {
-
-	function f(n) {
-		return n < 10 ? '0' + n : n;
-	}
-
-	return isFinite(this.valueOf()) ? this.getFullYear() + '-' + f(this.getMonth() + 1) + '-' + f(this.getDate()) + ' ' + f(this.getHours()) + ':' + f(this.getMinutes()) + ':' + f(this.getSeconds()) : null;
-};
-
 /**
- *  Ajax request singleton using Sencha framework
+ *  Ajax request singleton using standard XMLHttpRequest object
  */
 solubis.data.Ajax = {
 
 	request: function(url, command, params, callback, scope) {
-		var me = this,
-			ajax, user;
-
-		user = solubis.data.Database.getUser();
-
-		Ext.apply(params, {
-			login: user
-		});
-
-		ajax = new Ext.data.Connection({
-			useDefaultXhrHeader: false,
-			autoAbort: true,
-			disableCaching: false
-		});
-
-		ajax.request({
-			method: 'POST',
-			jsonData: params,
-			url: url + '/' + command,
-			success: function(response, opts) {
-				var result = response.responseText;
-
-				try {
-					result = Ext.decode(response.responseText);
-				} catch(error) {}
-
-				if (typeof callback == 'function') {
-					callback.call(scope || me, result);
-				}
-			},
-			failure: function(response, opts) {
-				throw 'Server error with status code : ' + response.status;
-			}
-		});
-	}
-
-};
-
-/**
- *  Ajax request singleton using standard XMLHttpRequest object
- */
-solubis.data.AjaxXHR = {
-
-	request: function(url, command, callback, scope) {
 		var me = this;
 
 		var request = new XMLHttpRequest();
@@ -75,8 +20,15 @@ solubis.data.AjaxXHR = {
 		request.onreadystatechange = function(aEvt) {
 			if (request.readyState == 4) {
 				if (request.status == 200) {
-					var result = Ext.decode(request.responseText);
-					if (typeof callback == 'function') {
+					var result = request.responseText;
+
+					try {
+						result = JSON.parse(request.responseText);
+					}
+					catch(e) {
+						console.log("Not s JSON string : " + e);
+					}
+					if (typeof callback === 'function') {
 						callback.call(scope || me, result);
 					}
 				} else {
@@ -91,213 +43,271 @@ solubis.data.AjaxXHR = {
 /**
  *  Synchronizer sigleton - proxy to remote data synchronization services
  */
-solubis.data.Synchronizer = {
+solubis.data.Synchronizer = (function() {
 
-	serverURL: '',
-	primaryKey: 'id',
+	var db = solubis.data.Database,
+		ajax = solubis.data.Ajax;
 
-	/**
-	 *  Download processing order structure
-	 *  @param {Function} function called after succesfull download
-	 *  @scope {Object} object scope for calling callback function
-	 */
-	getProcessingOrder: function(callback, scope) {
-		var me = this,
-			ajax;
+	var module = {
 
-		var onSuccess = function(result) {
-			if (!result.success) {
-				throw new Error(result.errorMessage);
-			}
+		serverURL: '',
+		primaryKey: 'id',
 
-			me.processingOrder = result.processingOrder;
-			if (typeof callback == 'function') {
+		init: function() {
+
+		},
+
+		setURL: function(url) {
+			this.serverURL = url;
+		},
+
+		/**
+		 *  Download processing order structure
+		 *  @param {Function} function called after succesfull download
+		 *  @scope {Object} object scope for calling callback function
+		 */
+		getProcessingOrder: function(callback, scope) {
+			var me = this;
+
+			var onSuccess = function(result) {
+				if (!result.success) {
+					throw new Error(result.errorMessage);
+				}
+
+				me.processingOrder = result.processingOrder;
+				if (typeof callback == 'function') {
+					callback.call(scope || me, me.processingOrder);
+				}
+			};
+
+			if (me.processingOrder == undefined) {
+				ajax.request(me.serverURL, 'order.json', {},
+				onSuccess);
+			} else {
 				callback.call(scope || me, me.processingOrder);
 			}
-		};
+		},
 
-		if (me.processingOrder == undefined) {
-			solubis.data.Ajax.request(me.serverURL, 'order.json', {},
-			onSuccess);
-		} else {
-			callback.call(scope || me, me.processingOrder);
-		}
-	},
+		/**
+		 *  Download data changes from server
+		 *  @param {Function} function called after succesfull download
+		 *  @scope {Object} object scope for calling callback function
+		 */
+		getData: function(callback, scope) {
+			var me = this;
 
-	/**
-	 *  Download data changes from server
-	 *  @param {Function} function called after succesfull download
-	 *  @scope {Object} object scope for calling callback function
-	 */
-	getData: function(callback, scope) {
-		var me = this,
-			ajax, result;
-
-		var onSuccess = function(result) {
-			if (!result.success) {
-				throw new Error(result.errorMessage);
-			}
-
-			if (typeof callback == 'function') {
-				callback.call(scope || me, result);
-			}
-		};
-
-		solubis.data.Ajax.request(me.serverURL, 'data.json', {},
-		onSuccess);
-	},
-
-	/**
-	 *  Download DDL SQL from server
-	 *  @param {Function} function called after succesfull download
-	 *  @scope {Object} object scope for calling callback function
-	 */
-	getDDL: function(callback, scope) {
-		var me = this;
-
-		var onSuccess = function(result) {
-
-			var commands = result.split(";");
-			commands.splice(commands.length - 1, commands.length - 1);
-
-			if (typeof callback == 'function') {
-				callback.call(scope || me, commands);
-			}
-		};
-
-		solubis.data.Ajax.request(me.serverURL, 'main.sql', {},
-		onSuccess);
-	},
-
-	/**
-	 *  Update local database with changes from server
-	 *  Method downloads processing order and data. After download data is inserted into
-	 *  local SQLite database.
-	 *  @param {Function} function called after succesfull operation
-	 *  @scope {Object} object scope for calling callback function
-	 */
-	download: function(callback, scope) {
-		var me = this,
-			ajax, conn, count = 0,
-			total = 0;
-
-		var onSuccess = function(tx, rs) {
-			count--;
-			if (count === 0) {
-				if (typeof callback == 'function') {
-					callback.call(scope || me, "success");
+			var onSuccess = function(result) {
+				if (!result.success) {
+					throw new Error(result.errorMessage);
 				}
-			}
-		};
 
-		var onError = function(sql, params) {
-			return function(tx, err) {
-				solubis.data.Database.throwDbError(tx, err, sql, params);
-			}
-		};
+				if (typeof callback == 'function') {
+					callback.call(scope || me, result);
+				}
+			};
 
-		var onDataDownloaded = function(result) {
-			for (var i = 0; i < result.tables.length; i++) {
-				count = count + result.tables[i].objects.length;
-			}
+			ajax.request(me.serverURL, 'data.json', {},
+			onSuccess);
+		},
 
-			total = count;
-			
-			conn  = solubis.data.Database.getConnection();
+		/**
+		 *  Download DDL SQL from server
+		 *  @param {Function} function called after succesfull download
+		 *  @scope {Object} object scope for calling callback function
+		 */
+		getDDL: function(callback, scope) {
+			var me = this;
 
-			conn.transaction(function(tx) {
-				var table, object, id;
+			var onSuccess = function(result) {
 
-				for (var i = 0; i < result.tables.length; i++) {
-					table = result.tables[i];
+				var commands = result.split(";");
+				commands.splice(commands.length - 1, commands.length - 1);
 
-					for (var j = 0; j < table.objects.length; j++) {
-						object = table.objects[j];
+				if (typeof callback == 'function') {
+					callback.call(scope || me, commands);
+				}
+			};
 
-						if (me.isDeletedObject(object)) {
-							me.deleteObject(tx, object, table.name, onSuccess, onError);
-						} else {
-							me.saveObject(tx, object, table.name, onSuccess, onError);
-						}
+			ajax.request(me.serverURL, 'main.sql', {},
+			onSuccess);
+		},
+
+		/**
+		 *  Update local database with changes from server
+		 *  Method downloads processing order and data. After download data is inserted into
+		 *  local SQLite database.
+		 *  @param {Function} function called after succesfull operation
+		 *  @scope {Object} object scope for calling callback function
+		 */
+		download: function(callback, scope) {
+			var me = this,
+				count = 0,
+				total = 0;
+
+			var onSuccess = function(tx, rs) {
+				count--;
+				if (count === 0) {
+					if (typeof callback == 'function') {
+						callback.call(scope || me, "success");
 					}
 				}
-			});
-		};
+			};
 
-		var onProcessingOrderDownloaded = function() {
-			me.getData(onDataDownloaded);
-		};
+			var onError = function(sql, params) {
+				return function(tx, err) {
+					db.throwDbError(tx, err, sql, params);
+				}
+			};
 
-		me.getProcessingOrder(onProcessingOrderDownloaded);
-	},
+			var onDataDownloaded = function(result) {
+				for (var i = 0; i < result.tables.length; i++) {
+					count = count + result.tables[i].objects.length;
+				}
 
-	isDeletedObject: function(object) {
-		return Object.keys(object).length == 1 && object[this.primaryKey] !== undefined;
-	},
+				total = count;
 
-	saveObject: function(tx, object, table, success, failure) {
-		var me = this,
-			id = object[me.primaryKey],
-			sql = "SELECT 1 FROM " + table + " WHERE id = ?";
+				db.transaction(function(tx) {
+					var table, object, id;
 
-		var onError = function(sql, params) {
-			return function(tx, err) {
-				solubis.data.Database.throwDbError(tx, err, sql, params);
-			}
-		};
-		solubis.data.Database.executeSql(tx, sql, [id], function(tx, rs) {
-			if (rs.rows.length > 0) {
-				me.updateObject(tx, object, table, success, failure);
-			} else {
-				me.insertObject(tx, object, table, success, failure);
-			}
+					for (var i = 0; i < result.tables.length; i++) {
+						table = result.tables[i];
+
+						for (var j = 0; j < table.objects.length; j++) {
+							object = table.objects[j];
+
+							if (me.isDeletedObject(object)) {
+								me.deleteObject(tx, object, table.name, onSuccess, onError);
+							} else {
+								me.saveObject(tx, object, table.name, onSuccess, onError);
+							}
+						}
+					}
+				});
+			};
+
+			var onProcessingOrderDownloaded = function() {
+				me.getData(onDataDownloaded);
+			};
+
+			me.getProcessingOrder(onProcessingOrderDownloaded);
 		},
-		onError(sql, [id]));
-	},
 
-	insertObject: function(tx, object, table, success, failure) {
-		var me = this,
-			sql, placeholders = [],
-			values = [],
-			columns = [];
+		isDeletedObject: function(object) {
+			return Object.keys(object).length == 1 && object[this.primaryKey] !== undefined;
+		},
 
-		for (var field in object) {
-			placeholders.push('?');
-			values.push(object[field]);
-			columns.push(field);
-		}
+		saveObject: function(tx, object, table, success, failure) {
+			var me = this,
+				id = object[me.primaryKey],
+				sql = "SELECT 1 FROM " + table + " WHERE id = ?";
 
-		sql = "INSERT INTO " + table + " (" + columns.join(',') + ") VALUES (" + placeholders.join(',') + ")";
-		solubis.data.Database.executeSql(tx, sql, values, success, failure(sql, values));
-	},
+			var onError = function(sql, params) {
+				return function(tx, err) {
+					db.throwDbError(tx, err, sql, params);
+				}
+			};
+			db.executeSQLInTransaction(tx, sql, [id], function(tx, rs) {
+				if (rs.rows.length > 0) {
+					me.updateObject(tx, object, table, success, failure);
+				} else {
+					me.insertObject(tx, object, table, success, failure);
+				}
+			},
+			onError(sql, [id]));
+		},
 
-	deleteObject: function(tx, object, table, success, failure) {
-		var me = this,
-			id, sql;
+		insertObject: function(tx, object, table, success, failure) {
+			var me = this,
+				sql, placeholders = [],
+				values = [],
+				columns = [];
 
-		id = object[me.primaryKey];
-
-		sql = "DELETE FROM " + table + ' WHERE id = ?';
-		solubis.data.Database.executeSql(tx, sql, [id], success, failure(sql, [id]));
-	},
-
-	updateObject: function(tx, object, table, success, failure) {
-		var me = this,
-			sql, id, values = [],
-			sets = [];
-
-		for (var field in object) {
-			if (field !== me.primaryKey) {
+			for (var field in object) {
+				placeholders.push('?');
 				values.push(object[field]);
-				sets.push(field + " = ?");
+				columns.push(field);
 			}
+
+			sql = "INSERT INTO " + table + " (" + columns.join(',') + ") VALUES (" + placeholders.join(',') + ")";
+			db.executeSQLInTransaction(tx, sql, values, success, failure(sql, values));
+		},
+
+		deleteObject: function(tx, object, table, success, failure) {
+			var me = this,
+				id, sql;
+
+			id = object[me.primaryKey];
+
+			sql = "DELETE FROM " + table + ' WHERE id = ?';
+			db.executeSQLInTransaction(tx, sql, [id], success, failure(sql, [id]));
+		},
+
+		updateObject: function(tx, object, table, success, failure) {
+			var me = this,
+				sql, id, values = [],
+				sets = [];
+
+			for (var field in object) {
+				if (field !== me.primaryKey) {
+					values.push(object[field]);
+					sets.push(field + " = ?");
+				}
+			}
+
+			id = object[me.primaryKey];
+			values.push(id);
+
+			sql = "UPDATE " + table + ' SET ' + sets.join(',') + ' WHERE id = ?';
+			db.executeSQLInTransaction(tx, sql, values, success, failure(sql, values));
 		}
+	};
 
-		id = object[me.primaryKey];
-		values.push(id);
+	module.init();
 
-		sql = "UPDATE " + table + ' SET ' + sets.join(',') + ' WHERE id = ?';
-		solubis.data.Database.executeSql(tx, sql, values, success, failure(sql, values));
-	}
+	return module;
 
-};
+})();
+
+/**
+ *  Ajax request singleton using Sencha framework
+ 
+ solubis.data.AjaxSencha = {
+ 
+ request: function(url, command, params, callback, scope) {
+ var me = this,
+ ajax, user;
+ 
+ user = solubis.data.Database.getUser();
+ 
+ Ext.apply(params, {
+ login: user
+ });
+ 
+ ajax = new Ext.data.Connection({
+ useDefaultXhrHeader: false,
+ autoAbort: true,
+ disableCaching: false
+ });
+ 
+ ajax.request({
+ method: 'POST',
+ jsonData: params,
+ url: url + '/' + command,
+ success: function(response, opts) {
+ var result = response.responseText;
+ 
+ try {
+ result = Ext.decode(response.responseText);
+ } catch(error) {}
+ 
+ if (typeof callback == 'function') {
+ callback.call(scope || me, result);
+ }
+ },
+ failure: function(response, opts) {
+ throw 'Server error with status code : ' + response.status;
+ }
+ });
+ }
+ 
+ }; */

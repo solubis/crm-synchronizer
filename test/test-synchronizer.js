@@ -7,7 +7,7 @@
 
 describe("Synchronization", function() {
 	var db, isCompleted, proxy, result, ajax, numberOfRecords = 5,
-		timeout = 5000;
+		timeout = 100;
 
 	var requestIsCompleted = function() {
 		return isCompleted;
@@ -21,18 +21,24 @@ describe("Synchronization", function() {
 		isCompleted = true;
 	};
 	
+	var time = function(){
+		var t = new Date();
+		
+		return t.toLocaleTimeString();
+	}
+	
 	beforeEach(function() {
 		result = undefined;
 		isCompleted = false;
 	});
 
-	solubis.data.Synchronizer.serverURL = 'http://192.168.1.2/synchronizer/db/';
+	solubis.data.Synchronizer.setURL('http://192.168.1.2/synchronizer/db/');
 	solubis.data.Database.setUser('Jenna Waite');
 	solubis.data.Database.setLogging(true);	
 	
 	xit("Create Database", function() {
 		runs(function() {
-			console.log('[' + new Date() + ']' + 'starting download DDL SQL');
+			console.log('[' + time() + ']' + 'starting download DDL SQL');
 			solubis.data.Database.createDatabase(onSuccess);
 		});
 
@@ -45,7 +51,7 @@ describe("Synchronization", function() {
 
 	it("Download Data", function() {
 		runs(function() {
-			console.log('[' + new Date() + ']' + 'starting download');
+			console.log('[' + time()  + ']' + 'starting download');
 			solubis.data.Synchronizer.download(onSuccess);
 		});
 
@@ -53,7 +59,7 @@ describe("Synchronization", function() {
 
 		runs(function() {
 			expect(result).toEqual('success');
-			console.log('[' + new Date() + ']' + 'finished downloading and inserting to database');
+			console.log('[' + time()  + ']' + 'finished downloading and inserting to database');
 		});
 	});
 });
