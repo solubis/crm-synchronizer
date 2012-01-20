@@ -2,59 +2,62 @@
  *  database.js
  *
  *  Database helper
- *  
+ *
  *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
-Ext.ns('acrm.data');
+Ext.ns('solubis.data');
 
 /**
  *  Helper singleton for accesing database structures: model, store, proxy
  */
-acrm.data.Database = (function() {
+solubis.data.Database = (function() {
 
 	// Name of database column for primary key
 	var idProperty = 'OBJECT_ID',
 		user = undefined,
 		initialized = false;
 
-	// Database proxy configuration object 
+	// Database proxy configuration object
 	var dbConfig = {
-		dbName: 'acrm',
+		dbName: 'timtrak',
 		dbVersion: '1.00',
-		dbDescription: 'Adaptive CRM Database',
-		logSQL: false
+		dbDescription: 'Timtrak Database',
+		dbSize: 5 * 1024 * 1024,
+		logSQL: true
 	};
 
-	var proxy = Ext.create('acrm.data.Proxy', dbConfig);
+	var proxy = Ext.create('solubis.data.Proxy', dbConfig);
 
 	/**
-	 *  Register model 
+	 *  Register model
 	 *  @param {String} model name
 	 *  @private
 	 */
 	var registerModel = function(modelname) {
-		var cfg = {extend: 'Ext.data.Model'};
+		var cfg = {
+			extend: 'Ext.data.Model'
+		};
 
-		if (acrm.data.Tables[modelname] === undefined) {
+		if (solubis.data.Tables[modelname] === undefined) {
 			throw new Error('Model not defined in models.js : ' + modelname);
 		}
 
 		cfg.idProperty = idProperty;
-		Ext.apply(cfg, acrm.data.Tables[modelname]);
-		Ext.apply(cfg, acrm.data.Associations[modelname]);
+		Ext.apply(cfg, solubis.data.Tables[modelname]);
+		Ext.apply(cfg, solubis.data.Associations[modelname]);
 		cfg.proxy = new module.getProxy(modelname);
 
 		Ext.define(modelname, cfg);
 	};
 
 	/**
-	 *  Register all models from models.js 
+	 *  Register all models from models.js
 	 *  @private
 	 */
 	var registerModels = function() {
-		for (table in acrm.data.Tables) {
-			if (acrm.data.Tables[table].fields) {
+		for (table in solubis.data.Tables) {
+			if (solubis.data.Tables[table].fields) {
 				registerModel(table);
 			}
 		}
@@ -62,16 +65,17 @@ acrm.data.Database = (function() {
 
 	var module = {
 
+		logSQL: false,
+
 		/**
 		 *  Initialize database access
 		 */
 		init: function() {
-			console.log('Database module initialization');
 			registerModels();
 		},
 
 		/**
-		 *  Get user currently logged in  
+		 *  Get user currently logged in
 		 *  @return {String}  User login
 		 */
 		getUser: function() {
@@ -82,16 +86,20 @@ acrm.data.Database = (function() {
 		},
 
 		/**
-		 *  Set user currently logged in  
+		 *  Set user currently logged in
 		 *  @param {String}  User login
 		 */
 		setUser: function(login) {
 			user = login;
 		},
 
+		getConnection: function() {
+			return openDatabase(dbConfig.dbName, dbConfig.dbVersion, dbConfig.dbDescription, dbConfig.dbSize);
+		},
+
 		/**
-		 *  Get database proxy instance  
-		 *  @return {acrm.data.Proxy} Proxy instance
+		 *  Get database proxy instance
+		 *  @return {solubis.data.Proxy} Proxy instance
 		 */
 		getProxy: function(modelname) {
 			var cfg = {};
@@ -101,7 +109,7 @@ acrm.data.Database = (function() {
 			} else {
 				cfg.name = 'SQLiteProxy';
 			}
-			return new acrm.data.Proxy(cfg);
+			return new solubis.data.Proxy(cfg);
 		},
 
 		/**
@@ -122,9 +130,9 @@ acrm.data.Database = (function() {
 		},
 
 		setLogging: function(flag) {
-			console.log('Logging');
 			dbConfig.logSQL = flag;
 			proxy.logSQL = flag;
+			this.logSQL = flag;
 		},
 
 		load: function(models, callback, scope) {
@@ -190,14 +198,29 @@ acrm.data.Database = (function() {
 		},
 
 		/**
-		 *  Create database using generated schema DDL (ddl.js)  
+		 *  Output Query Error
+		 *  @param {Object} tx Transaction
+		 *  @param {Object} rs Response
+		 */
+		throwDbError: function(tx, err, sql, params) {
+			var error = new Error(err.message + ' in SQL: ' + sql + ' [' + (params || []) + ']');
+			error.name = 'Database Error';
+			throw error;
+		},
+
+		executeSql: function(tx, sql, params, success, failure) {
+			if (this.logSQL) console.log('[SQL]: ' + sql + ' [' + (params || '') + ']');
+			tx.executeSql(sql, params, success, failure);
+		},
+
+		/**
+		 *  Create database using generated schema DDL (ddl.js)
 		 *  @param {Function} callback function
-		 *  @param {Object} scope of callback function 	
+		 *  @param {Object} scope of callback function
 		 */
 		createDatabase: function(callback, scope) {
 			var me = this,
-				ddl = acrm.data.DDL.ddlObjects,
-				count = ddl.length;
+				ddls, count;
 
 			var onSuccess = function() {
 				count--;
@@ -213,19 +236,25 @@ acrm.data.Database = (function() {
 				proxy.throwDbError(tx, err);
 			};
 
-			for (var i = 0; i < ddl.length; i++) {
-				proxy.runSQL(ddl[i].create, [], onSuccess, onError);
+			var onDownload = function(result) {
+				count = result.length;
+
+				for (var i = 0; i < result.length; i++) {
+					proxy.runSQL(result[i], [], onSuccess, onError);
+				}
 			};
+
+			solubis.data.Synchronizer.getDDL(onDownload);
 		},
 
 		/**
-		 *  Drop database using generated schema DDL (ddl.js)  
+		 *  Drop database using generated schema DDL (ddl.js)
 		 *  @param {Function} callback function
-		 *  @param {Object} scope of callback function 	
+		 *  @param {Object} scope of callback function
 		 */
 		dropDatabase: function(callback, scope) {
 			var me = this,
-				ddl = acrm.data.DDL.ddlObjects,
+				ddl = solubis.data.DDL.ddlObjects,
 				count = ddl.length;
 
 			var onSuccess = function() {
@@ -244,8 +273,8 @@ acrm.data.Database = (function() {
 		},
 
 		/**
-		 *  Destroys all records stored in the proxy 
-		 *  @param {String} tablename Name of database table 
+		 *  Destroys all records stored in the proxy
+		 *  @param {String} tablename Name of database table
 		 *  @callback {Function} callback function
 		 *  @scope {Object} scope of callback function
 		 */
@@ -282,7 +311,7 @@ acrm.data.Database = (function() {
 			proxy.runSQL('SELECT COUNT(*) FROM ' + tablename, [], onSuccess);
 		},
 	};
-	
+
 	module.init();
 
 	return module;

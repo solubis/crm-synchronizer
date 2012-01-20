@@ -29,9 +29,9 @@ xdescribe("Web SQL Proxy", function() {
 	it('Drop database', function() {
 		desc = 'Drop database';
 		runs(function() {
-			acrm.data.Database.setLogging(true);
-			acrm.data.Database.init();
-			acrm.data.Database.dropDatabase(onSuccess(desc));
+			solubis.data.Database.setLogging(true);
+			solubis.data.Database.init();
+			solubis.data.Database.dropDatabase(onSuccess(desc));
 		});
 		waitsFor(requestIsCompleted, desc, timeout);
 	});
@@ -39,26 +39,26 @@ xdescribe("Web SQL Proxy", function() {
 	it('Create database', function() {
 		desc = 'Create database';
 		runs(function() {
-			acrm.data.Database.createDatabase(onSuccess(desc));
+			solubis.data.Database.createDatabase(onSuccess(desc));
 		});
 
 		waitsFor(requestIsCompleted, desc, timeout);
 	});
 
 	it("Create DataStores", function() {
-		store = acrm.data.Database.getStore({
+		store = solubis.data.Database.getStore({
 			model: 'PRODUCT'
 		});
 
-		organizationStore = acrm.data.Database.getStore({
+		organizationStore = solubis.data.Database.getStore({
 			model: 'ORGANIZATION'
 		//	sql: 'SELECT ' +'ORGANIZATION.ORGANIZATION_TYPE_ID, ' + 'ORGANIZATION.INTERNAL_NAME, ' + 'ORGANIZATION.OBJECT_ID AS TYPE_ID, ' + 'ORGANIZATION_TYPE.NAME AS TYPE_NAME, ' + 'ORGANIZATION_TYPE.OBJECT_ID, '+ 'ORGANIZATION_TYPE_GROUP.NAME AS TYPE_GROUP_NAME ' + 'FROM ORGANIZATION INNER JOIN ORGANIZATION_TYPE ON ORGANIZATION.ORGANIZATION_TYPE_ID = ORGANIZATION_TYPE.OBJECT_ID ' + 'INNER JOIN ORGANIZATION_TYPE_GROUP ON ORGANIZATION_TYPE.ORGANIZATION_TYPE_GROUP_ID = ORGANIZATION_TYPE_GROUP.OBJECT_ID',
 		});
 		
-		organizationTypeGroupStore = acrm.data.Database.getStore({
+		organizationTypeGroupStore = solubis.data.Database.getStore({
 			model: 'ORGANIZATION_TYPE_GROUP'
 		});
-		organizationTypeStore = acrm.data.Database.getStore({
+		organizationTypeStore = solubis.data.Database.getStore({
 			model: 'ORGANIZATION_TYPE'
 		});
 
@@ -85,12 +85,12 @@ xdescribe("Web SQL Proxy", function() {
 
 	xit("Truncate Tables", function() {
 		runs(function() {
-			acrm.data.Database.truncateTable('PRODUCT');
-			acrm.data.Database.truncateTable('CHANGE_TRACKING');
+			solubis.data.Database.truncateTable('PRODUCT');
+			solubis.data.Database.truncateTable('CHANGE_TRACKING');
 		});
 
 		runs(function() {
-			acrm.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
+			solubis.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
 		});
 
 		waitsFor(requestIsCompleted, "count rows in table", timeout);
@@ -148,7 +148,7 @@ xdescribe("Web SQL Proxy", function() {
 
 		runs(function() {
 			result = undefined;
-			acrm.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
+			solubis.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
 		});
 
 		waitsFor(requestIsCompleted, "count rows in table", timeout);
@@ -172,7 +172,7 @@ xdescribe("Web SQL Proxy", function() {
 
 		runs(function() {
 			result = undefined;
-			acrm.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
+			solubis.data.Database.getTableSize('PRODUCT', onSuccess('GetTableSize'));
 		});
 
 		waitsFor(requestIsCompleted, "count rows in table", timeout);

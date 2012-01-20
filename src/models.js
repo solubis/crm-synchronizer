@@ -6,13 +6,13 @@
  *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
-Ext.ns('acrm.data');
+Ext.ns('solubis.data');
 
 /**
  *	Structure holding all data model definitions reflecting database schema
  *  Used by Sencha Stores
  */
-acrm.data.Tables = {
+solubis.data.Tables = {
 	CHANGE_TRACKING: {
 		fields: [{
 			name: 'OBJECT_ID',

@@ -7,14 +7,14 @@
  *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
-Ext.ns('acrm.data');
+Ext.ns('solubis.data');
 
 /**
  *  Class for accesing data in SQLite Web SQL database
- *  @class acrm.data.Proxy
+ *  @class solubis.data.Proxy
  */
 
-Ext.define('acrm.data.Proxy', {
+Ext.define('solubis.data.Proxy', {
 	extend: 'Ext.data.Proxy', 
 	xtype: 'sqliteproxy',
 
