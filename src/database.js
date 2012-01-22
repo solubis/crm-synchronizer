@@ -298,12 +298,12 @@ solubis.data.Database = (function() {
 		},
 
 		logChange: function(table, id, operation, success) {
-			var me = this,
+			var me = this, 
 				log = {
 				object_id: id,
 				tablename: table,
 				operation: operation,
-				timestamp: new Date()
+				timestamp: (new Date()).getTime()
 			};
 
 			if (table === 'ChangeLog' || !changeLog) {
