@@ -8,7 +8,7 @@
             "objects":[
                 {"id": "8addd733-de5f-e011-9845-444553544200", "name": "Something to do", "description": "Something to do description", "start": "1", "end": "2", "estimate": 12},     
 				{"id": "8addd733-de5f-e011-9845-444553544201", "name": "Something to do", "description": "Something to do description", "start": "1", "end": "2", "estimate": 12},
-				{"id": "8addd733-de5f-e011-9845-444553544202", "name": "Updated", "description": "Something to do description", "start": "1", "end": "2", "estimate": 12},
+				{"id": "8addd733-de5f-e011-9845-444553544202", "name": "Updated from server", "description": "Something to do description", "start": "1", "end": "2", "estimate": 12},
 				{"id": "8addd733-de5f-e011-9845-444553544201"}    
             ]
         }

@@ -84,3 +84,13 @@ CREATE TABLE "User" (
 	 "password" text,
 	PRIMARY KEY("id")
 );
+
+DROP TABLE IF EXISTS "ChangeLog";
+CREATE TABLE "ChangeLog" (
+	 "id" text NOT NULL,
+	 "object_id" text NOT NULL,
+	 "tablename" text NOT NULL,
+	 "timestamp" integer NOT NULL,
+	 "operation" text NOT NULL,
+	PRIMARY KEY("id")
+);

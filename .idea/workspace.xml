@@ -7,17 +7,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="76d7cc24-7d28-4c8e-a2e1-efb68317dc6f" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/test/index.html" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/test/test-synchronizer.js" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/test/test.js" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/db/ddl.json" afterPath="" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/aCRMSynch.iml" afterPath="$PROJECT_DIR$/.idea/aCRMSynch.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/db/main.sql" afterPath="$PROJECT_DIR$/db/main.sql" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/jsLibraryMappings.xml" afterPath="$PROJECT_DIR$/.idea/jsLibraryMappings.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Synchronizer.tmproj" afterPath="$PROJECT_DIR$/Synchronizer.tmproj" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/database.js" afterPath="$PROJECT_DIR$/src/database.js" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/synchronizer.js" afterPath="$PROJECT_DIR$/src/synchronizer.js" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/JsTestDriver.conf" afterPath="$PROJECT_DIR$/test/JsTestDriver.conf" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/test.js" afterPath="$PROJECT_DIR$/test/test.js" />
     </list>
     <ignored path="aCRMSynch.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -42,7 +34,7 @@
       <file leaf-file-name="synchronizer.js" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/synchronizer.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="160" column="0" selection-start="4581" selection-end="4581" vertical-scroll-proportion="0.0">
+            <state line="160" column="0" selection-start="3776" selection-end="3776" vertical-scroll-proportion="0.0">
               <folding />
             </state>
           </provider>
@@ -51,7 +43,7 @@
       <file leaf-file-name="test-synchronizer.js" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test/test-synchronizer.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="33" column="5" selection-start="807" selection-end="808" vertical-scroll-proportion="0.0">
+            <state line="37" column="4" selection-start="644" selection-end="807" vertical-scroll-proportion="0.0">
               <folding />
             </state>
           </provider>
@@ -60,16 +52,7 @@
       <file leaf-file-name="database.js" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/database.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="217" column="0" selection-start="5819" selection-end="5819" vertical-scroll-proportion="0.33290815">
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="test.js" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/test/test.js">
-          <provider selected="true" editor-type-id="text-editor">
-            <state line="7" column="23" selection-start="171" selection-end="171" vertical-scroll-proportion="0.0">
+            <state line="51" column="40" selection-start="1000" selection-end="1000" vertical-scroll-proportion="0.011684518">
               <folding />
             </state>
           </provider>
@@ -98,9 +81,10 @@
         <option value="$PROJECT_DIR$/src/synchronizer.js" />
         <option value="$PROJECT_DIR$/test/generated-test.jstd" />
         <option value="$PROJECT_DIR$/test/test.config" />
-        <option value="$PROJECT_DIR$/test/test.js" />
         <option value="$PROJECT_DIR$/test/test-synchronizer.js" />
         <option value="$PROJECT_DIR$/src/database.js" />
+        <option value="$PROJECT_DIR$/test/JsTestDriver.conf" />
+        <option value="$PROJECT_DIR$/test/test.js" />
       </list>
     </option>
   </component>
@@ -108,7 +92,7 @@
     <option name="x" value="-306" />
     <option name="y" value="-1080" />
     <option name="width" value="1920" />
-    <option name="height" value="1080" />
+    <option name="height" value="1076" />
   </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
     <entry key="Project Default">
@@ -251,7 +235,7 @@
     <property name="options.splitter.main.proportions" value="0.3" />
     <property name="jstd_last_opened_file_path" value="$PROJECT_DIR$/test" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="options.lastSelected" value="preferences.pluginManager" />
+    <property name="options.lastSelected" value="preferences.keymap" />
     <property name="recentsLimit" value="5" />
     <property name="FullScreen" value="false" />
     <property name="options.searchVisible" value="true" />
@@ -356,18 +340,18 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-306" y="-1080" width="1920" height="1080" extended-state="0" />
+    <frame x="-306" y="-1080" width="1920" height="1076" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32890365" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="true" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.13333334" sideWeight="0.76654065" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.23345935" sideWeight="0.32864583" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.13333334" sideWeight="0.7666034" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.23339659" sideWeight="0.32864583" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.23345935" sideWeight="0.4984375" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32986766" sideWeight="0.49791667" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="JsTestDriver Server" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32986766" sideWeight="0.66770834" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33111954" sideWeight="0.49791667" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="JsTestDriver Server" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32922202" sideWeight="0.66770834" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32890365" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Phing Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -478,24 +462,29 @@
         <state line="85" column="2" selection-start="1536" selection-end="1536" vertical-scroll-proportion="0.98933077" />
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/synchronizer.js">
+    <entry file="file://$PROJECT_DIR$/test/JsTestDriver.conf">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="160" column="0" selection-start="4581" selection-end="4581" vertical-scroll-proportion="0.0" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test/test-synchronizer.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="33" column="5" selection-start="807" selection-end="808" vertical-scroll-proportion="0.0" />
+        <state line="2" column="0" selection-start="36" selection-end="36" vertical-scroll-proportion="0.035190616" />
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/test/test.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="7" column="23" selection-start="171" selection-end="171" vertical-scroll-proportion="0.0" />
+        <state line="9" column="0" selection-start="226" selection-end="226" vertical-scroll-proportion="0.10516066" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/synchronizer.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="160" column="0" selection-start="3776" selection-end="3776" vertical-scroll-proportion="0.0" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/test/test-synchronizer.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="37" column="4" selection-start="644" selection-end="807" vertical-scroll-proportion="0.0" />
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/database.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="217" column="0" selection-start="5819" selection-end="5819" vertical-scroll-proportion="0.33290815">
+        <state line="51" column="40" selection-start="1000" selection-end="1000" vertical-scroll-proportion="0.011684518">
           <folding />
         </state>
       </provider>

@@ -25,9 +25,7 @@ solubis.data.Ajax = {
 					try {
 						result = JSON.parse(request.responseText);
 					}
-					catch(e) {
-						console.log("Not s JSON string : " + e);
-					}
+					catch(e) {}
 					if (typeof callback === 'function') {
 						callback.call(scope || me, result);
 					}
@@ -45,20 +43,26 @@ solubis.data.Ajax = {
  */
 solubis.data.Synchronizer = (function() {
 
-	var db = solubis.data.Database,
-		ajax = solubis.data.Ajax;
+	var db, serverURL, ajax = solubis.data.Ajax,
+		Synchronizer;
 
-	var module = {
+	Synchronizer = function(url, database) {
+		if (url === undefined || database === undefined) {
+			throw new Error("You must specify server URL and database instance");
+		}
+		serverURL = url;
+		db = database;
+	};
 
-		serverURL: '',
+	Synchronizer.prototype = {
 		primaryKey: 'id',
 
-		init: function() {
+		constructor: Synchronizer,
 
-		},
+		init: function() {},
 
 		setURL: function(url) {
-			this.serverURL = url;
+			serverURL = url;
 		},
 
 		/**
@@ -81,7 +85,7 @@ solubis.data.Synchronizer = (function() {
 			};
 
 			if (me.processingOrder == undefined) {
-				ajax.request(me.serverURL, 'order.json', {},
+				ajax.request(serverURL, 'order.json', {},
 				onSuccess);
 			} else {
 				callback.call(scope || me, me.processingOrder);
@@ -106,7 +110,7 @@ solubis.data.Synchronizer = (function() {
 				}
 			};
 
-			ajax.request(me.serverURL, 'data.json', {},
+			ajax.request(serverURL, 'data.json', {},
 			onSuccess);
 		},
 
@@ -128,8 +132,38 @@ solubis.data.Synchronizer = (function() {
 				}
 			};
 
-			ajax.request(me.serverURL, 'main.sql', {},
+			ajax.request(serverURL, 'main.sql', {},
 			onSuccess);
+		},
+
+		/**
+		 *  Create database using generated schema DDL (ddl.js)
+		 *  @param {Function} callback function
+		 *  @param {Object} scope of callback function
+		 */
+		createDatabase: function(callback, scope) {
+			var me = this,
+				ddls, count, total;
+
+			var onSuccess = function() {
+				count--;
+				if (count === 0) {
+					if (typeof callback == 'function') {
+						callback.call(scope || me, total);
+					}
+				}
+			};
+
+			var onDownload = function(result) {
+				count = result.length;
+				total = count;
+
+				for (var i = 0; i < result.length; i++) {
+					db.executeSQL(result[i], [], onSuccess);
+				}
+			};
+
+			me.getDDL(onDownload);
 		},
 
 		/**
@@ -147,15 +181,12 @@ solubis.data.Synchronizer = (function() {
 			var onSuccess = function(tx, rs) {
 				count--;
 				if (count === 0) {
+					
+					db.clearTable('ChangeLog');
+					
 					if (typeof callback == 'function') {
-						callback.call(scope || me, "success");
+						callback.call(scope || me, total);
 					}
-				}
-			};
-
-			var onError = function(sql, params) {
-				return function(tx, err) {
-					db.throwDbError(tx, err, sql, params);
 				}
 			};
 
@@ -166,23 +197,31 @@ solubis.data.Synchronizer = (function() {
 
 				total = count;
 
-				db.transaction(function(tx) {
-					var table, object, id;
+				db.enableChangeLog(false);
 
-					for (var i = 0; i < result.tables.length; i++) {
-						table = result.tables[i];
+				try {
+					db.transaction(function(tx) {
+						var table, object, id;
 
-						for (var j = 0; j < table.objects.length; j++) {
-							object = table.objects[j];
+						for (var i = 0; i < result.tables.length; i++) {
+							table = result.tables[i];
 
-							if (me.isDeletedObject(object)) {
-								me.deleteObject(tx, object, table.name, onSuccess, onError);
-							} else {
-								me.saveObject(tx, object, table.name, onSuccess, onError);
+							for (var j = 0; j < table.objects.length; j++) {
+								object = table.objects[j];
+
+								if (me.isDeletedObject(object)) {
+									db.deleteObjectTx(tx, object, table.name, onSuccess);
+								} else {
+									db.saveObjectTx(tx, object, table.name, onSuccess);
+								}
 							}
 						}
-					}
-				});
+					});
+				} catch(e) {
+					
+				} finally {
+					db.enableChangeLog(true);
+				}
 			};
 
 			var onProcessingOrderDownloaded = function() {
@@ -194,79 +233,11 @@ solubis.data.Synchronizer = (function() {
 
 		isDeletedObject: function(object) {
 			return Object.keys(object).length == 1 && object[this.primaryKey] !== undefined;
-		},
-
-		saveObject: function(tx, object, table, success, failure) {
-			var me = this,
-				id = object[me.primaryKey],
-				sql = "SELECT 1 FROM " + table + " WHERE id = ?";
-
-			var onError = function(sql, params) {
-				return function(tx, err) {
-					db.throwDbError(tx, err, sql, params);
-				}
-			};
-			db.executeSQLInTransaction(tx, sql, [id], function(tx, rs) {
-				if (rs.rows.length > 0) {
-					me.updateObject(tx, object, table, success, failure);
-				} else {
-					me.insertObject(tx, object, table, success, failure);
-				}
-			},
-			onError(sql, [id]));
-		},
-
-		insertObject: function(tx, object, table, success, failure) {
-			var me = this,
-				sql, placeholders = [],
-				values = [],
-				columns = [];
-
-			for (var field in object) {
-				placeholders.push('?');
-				values.push(object[field]);
-				columns.push(field);
-			}
-
-			sql = "INSERT INTO " + table + " (" + columns.join(',') + ") VALUES (" + placeholders.join(',') + ")";
-			db.executeSQLInTransaction(tx, sql, values, success, failure(sql, values));
-		},
-
-		deleteObject: function(tx, object, table, success, failure) {
-			var me = this,
-				id, sql;
-
-			id = object[me.primaryKey];
-
-			sql = "DELETE FROM " + table + ' WHERE id = ?';
-			db.executeSQLInTransaction(tx, sql, [id], success, failure(sql, [id]));
-		},
-
-		updateObject: function(tx, object, table, success, failure) {
-			var me = this,
-				sql, id, values = [],
-				sets = [];
-
-			for (var field in object) {
-				if (field !== me.primaryKey) {
-					values.push(object[field]);
-					sets.push(field + " = ?");
-				}
-			}
-
-			id = object[me.primaryKey];
-			values.push(id);
-
-			sql = "UPDATE " + table + ' SET ' + sets.join(',') + ' WHERE id = ?';
-			db.executeSQLInTransaction(tx, sql, values, success, failure(sql, values));
 		}
 	};
 
-	module.init();
-
-	return module;
-
-})();
+	return Synchronizer;
+} ());
 
 /**
  *  Ajax request singleton using Sencha framework

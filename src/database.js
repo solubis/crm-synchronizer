@@ -6,7 +6,7 @@
  *  Copyright 2011 Client and Friends. All rights reserved.
  */
 
-solubis = {};
+var solubis = {};
 solubis.data = {};
 
 /**
@@ -15,63 +15,66 @@ solubis.data = {};
 solubis.data.Database = (function() {
 
 	// Name of database column for primary key
-	var idProperty = 'OBJECT_ID',
-		user = undefined;
+	var user, Database, db, changeLog = true,
+		sqlLog = false;
 
-	// Database proxy configuration object
+	// Database configuration object
 	var dbConfig = {
-		dbName: 'timtrak',
-		dbVersion: '1.00',
-		dbDescription: 'SQLite Database',
-		dbSize: 5 * 1024 * 1024,
+		name: 'test',
+		version: '1.00',
+		description: 'SQLite Database',
+		size: 5 * 1024 * 1024
 	};
-	
-	var db, logSQL;
 
-	var module = {
+	Database = function(name, user, password) {
+		db = openDatabase(name || dbConfig.name, dbConfig.version, dbConfig.description, dbConfig.size);
 
-		/**
-		 *  Initialize database access
-		 */
-		init: function() {
-			db = openDatabase(dbConfig.dbName, dbConfig.dbVersion, dbConfig.dbDescription, dbConfig.dbSize);
-		},
+		if (user === undefined || password === undefined) {
+			throw new Error("You must provide user credentails to open local SQLite database");
+		}
+	};
 
-		/**
-		 *  Get user currently logged in
-		 *  @return {String}  User login
-		 */
-		getUser: function() {
-			if (user === undefined) {
-				throw 'User undefined - first set user by logging in';
-			}
-			return user;
-		},
+	Database.prototype = {
 
-		/**
-		 *  Set user currently logged in
-		 *  @param {String}  User login
-		 */
-		setUser: function(login) {
-			user = login;
+		primaryKey: 'id',
+
+		constructor: Database,
+
+		enableChangeLog: function(flag) {
+			changeLog = flag;
 		},
 
 		getConnection: function() {
 			return db;
 		},
 
-		setLogging: function(flag) {
-			logSQL = flag;
+		enableSQLLog: function(flag) {
+			sqlLog = flag;
+		},
+
+		setPrimaryKey: function(name) {
+			this.primaryKey = name;
+		},
+
+		/**
+		 *  Error callback factory, returns function that knows about SQL and its params
+		 *  @param {String} sql SQL statement
+		 *  @param {Array} values array of values for SQL statement
+		 */
+		onSQLError: function(sql, values) {
+			var me = this;
+
+			return function(tx, err) {
+				me.throwSQLError(err, sql, values);
+			};
 		},
 
 		/**
 		 *  Output Query Error
-		 *  @param {Object} tx Transaction
-		 *  @param {Object} rs Response
 		 */
-		throwDbError: function(tx, err, sql, params) {
+		throwSQLError: function(err, sql, params) {
 			var error = new Error(err.message + ' in SQL: ' + sql + ' [' + (params || []) + ']');
-			error.name = 'Database Error';
+			error.name = 'SQL Error';
 			throw error;
 		},
 
@@ -82,54 +85,183 @@ solubis.data.Database = (function() {
 		 *  @param {Function} errorcallback function to call after error
 		 *  @param {Array} params Array of parameters passed to SQL function (when used '?' placeholders)
 		 */
-		executeSQL: function(sql, params, successcallback, errorcallback) {
+		executeSQL: function(sql, params, success, failure) {
 			var me = this;
 
-			db.transaction(function(tx) {
-				me.executeSQLInTransaction(tx, sql, params, successcallback || function(){}, errorcallback || me.onError(sql, params));
+			me.transaction(function(tx) {
+				me.executeSQLTx(tx, sql, params, success, failure);
 			});
 		},
 
-		executeSQLInTransaction: function(tx, sql, params, success, failure) {
-			if (logSQL) console.log('[SQL]: ' + sql + ' [' + (params || '') + ']');
-			tx.executeSql(sql, params, success, failure);
+		executeSQLTx: function(tx, sql, params, success, failure) {
+			var me = this;
+
+			if (sqlLog) console.log('[SQL]: ' + sql + ' [' + (params || '') + ']');
+
+			tx.executeSql(sql, params, success ||
+			function() {},
+			failure || me.onSQLError(sql, params));
 		},
-		
-		transaction: function(f){
+
+		transaction: function(f) {
 			db.transaction(f);
 		},
 
-		/**
-		 *  Create database using generated schema DDL (ddl.js)
-		 *  @param {Function} callback function
-		 *  @param {Object} scope of callback function
-		 */
-		createDatabase: function(callback, scope) {
-			var me = this,
-				ddls, count;
+		saveObject: function(object, table, success, failure) {
+			var me = this;
 
-			var onSuccess = function() {
-				count--;
-				if (count === 0) {
-					if (typeof callback == 'function') {
-						callback.call(scope || me, "success");
+			me.transaction(function(tx) {
+				me.saveObjectTx(tx, object, table, success, failure);
+			});
+		},
+
+		saveObjectTx: function(tx, object, table, success, failure) {
+			var me = this,
+				id = object[me.primaryKey],
+				sql = "SELECT 1 FROM " + table + " WHERE id = ?";
+
+			if (id === undefined) {
+				me.insertObjectTx(tx, object, table, success, failure);
+				return;
+			}
+
+			me.executeSQLTx(tx, sql, [id], function(tx, rs) {
+				if (rs.rows.length > 0) {
+					me.updateObjectTx(tx, object, table, success, failure);
+				} else {
+					me.insertObjectTx(tx, object, table, success, failure);
+				}
+			},
+			me.onSQLError(sql, [id]));
+		},
+
+		insertObject: function(object, table, success, failure) {
+			var me = this;
+
+			me.transaction(function(tx) {
+				me.insertObjectTx(tx, object, table, success, failure);
+			});
+		},
+
+		insertObjectTx: function(tx, object, table, success, failure) {
+			var me = this,
+				sql, placeholders = [],
+				id = object[me.primaryKey],
+				values = [],
+				columns = [];
+
+			if (id === undefined) {
+				id = me.getGUID();
+			}
+
+			var onSuccess = function(tx, rs) {
+				object[me.primaryKey] = id;
+
+				me.logChange(table, id, 'I', function() {
+					if (typeof success == 'function') {
+						success(object);
+					}
+				});
+			};
+
+			columns.push(me.primaryKey);
+			placeholders.push('?');
+			values.push(id);
+
+			for (var field in object) {
+				if (field !== me.primaryKey) {
+					placeholders.push('?');
+					values.push(object[field]);
+					columns.push(field);
+				}
+			}
+
+			sql = "INSERT INTO " + table + " (" + columns.join(',') + ") VALUES (" + placeholders.join(',') + ")";
+			me.executeSQLTx(tx, sql, values, onSuccess, failure);
+		},
+
+		deleteObject: function(object, table, success, failure) {
+			var me = this;
+
+			me.transaction(function(tx) {
+				me.deleteObjectTx(tx, object, table, success, failure);
+			});
+		},
+
+		deleteObjectTx: function(tx, object, table, success, failure) {
+			var me = this,
+				id, sql;
+
+			var onSuccess = function(tx, rs) {
+				me.logChange(table, id, 'D', function() {
+					if (typeof success == 'function') {
+						success();
+					}
+				});
+			};
+
+			id = object[me.primaryKey];
+
+			sql = "DELETE FROM " + table + ' WHERE id = ?';
+			me.executeSQLTx(tx, sql, [id], onSuccess, failure);
+		},
+
+		updateObject: function(object, table, success, failure) {
+			var me = this;
+
+			me.transaction(function(tx) {
+				me.updateObjectTx(tx, object, table, success, failure);
+			});
+		},
+
+		updateObjectTx: function(tx, object, table, success, failure) {
+			var me = this,
+				sql, id, values = [],
+				sets = [];
+
+			var onSuccess = function(tx, rs) {
+				me.logChange(table, id, 'U', function() {
+					if (typeof success == 'function') {
+						success();
+					}
+				});
+			};
+
+			for (var field in object) {
+				if (field !== me.primaryKey) {
+					values.push(object[field]);
+					sets.push(field + " = ?");
+				}
+			}
+
+			id = object[me.primaryKey];
+			values.push(id);
+
+			sql = "UPDATE " + table + ' SET ' + sets.join(',') + ' WHERE id = ?';
+			me.executeSQLTx(tx, sql, values, onSuccess, failure);
+		},
+
+		readLogForObject: function(id, success, failure) {
+			var me = this,
+				sql;
+
+			var onSuccess = function(tx, rs) {
+				var log;
+
+				if (rs.rows.length > 0) {
+					log = {
+						operation: rs.rows.item(0)['operation'],
+						id: rs.rows.item(0)['id']
 					}
 				}
-			};
 
-			var onError = function(tx, err) {
-				me.throwDbError(tx, err);
-			};
-
-			var onDownload = function(result) {
-				count = result.length;
-
-				for (var i = 0; i < result.length; i++) {
-					me.executeSQL(result[i], [], onSuccess, onError);
+				if (typeof success == 'function') {
+					success(log);
 				}
 			};
 
-			solubis.data.Synchronizer.getDDL(onDownload);
+			sql = "SELECT id, operation FROM ChangeLog WHERE object_id = ?";
+			me.executeSQL(sql, [id], onSuccess, failure);
 		},
 
 		/**
@@ -138,17 +270,11 @@ solubis.data.Database = (function() {
 		 *  @callback {Function} callback function
 		 *  @scope {Object} scope of callback function
 		 */
-		clearTable: function(tablename, callback, scope) {
+		clearTable: function(table, success, failure) {
 			var me = this,
-				sql = 'DELETE FROM ' + tablename;
+				sql = 'DELETE FROM ' + table;
 
-			var onSuccess = function(tx, rs) {
-				if (typeof callback == "function") {
-					callback.call(scope || me, result);
-				}
-			};
-
-			me.executeSQL(sql, [], onSuccess);
+			me.executeSQL(sql, [], success, failure);
 			return true;
 		},
 
@@ -157,23 +283,58 @@ solubis.data.Database = (function() {
 		 *  @callback {Function} callback function
 		 *  @scope {Object} scope of callback function
 		 */
-		getTableSize: function(tablename, callback, scope) {
+		getTableSize: function(table, success, failure) {
 			var me = this;
 
 			var onSuccess = function(tx, rs) {
 				var result = rs.rows.item(0)['COUNT(*)'];
 
-				if (typeof callback == "function") {
-					callback.call(scope || me, result);
+				if (typeof success == "function") {
+					success(result);
 				}
 			};
 
-			me.executeSQL('SELECT COUNT(*) FROM ' + tablename, [], onSuccess);
+			me.executeSQL('SELECT COUNT(*) FROM ' + table, [], onSuccess, failure);
 		},
+
+		logChange: function(table, id, operation, success) {
+			var me = this,
+				log = {
+				object_id: id,
+				tablename: table,
+				operation: operation,
+				timestamp: new Date()
+			};
+
+			if (table === 'ChangeLog' || !changeLog) {
+				success();
+				return;
+			};
+
+			me.readLogForObject(id, function(result) {
+				if (result) {
+					log.id = result.id
+				};
+				me.saveObject(log, 'ChangeLog', success);
+			})
+		},
+
+		/**	
+		 * Helper function for generating GUID   
+		 */
+		getRandomString: function() {
+			return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
+		},
+
+		/**	
+		 * Generate GUID   
+		 */
+		getGUID: function() {
+			var me = this;
+			return (me.getRandomString() + me.getRandomString() + "-" + me.getRandomString() + "-" + me.getRandomString() + "-" + me.getRandomString() + "-" + me.getRandomString() + me.getRandomString() + me.getRandomString()).toUpperCase();
+		}
 	};
 
-	module.init();
-
-	return module;
+	return Database;
 
 } ());
