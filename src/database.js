@@ -13,6 +13,7 @@ solubis.data = {};
  *  Helper singleton for accesing database structures: model, store, proxy
  */
 solubis.data.Database = (function() {
+	var CHANGE_LOG_TABLE = 'ChangeLog';
 
 	// Name of database column for primary key
 	var user, Database, db, changeLog = true,
@@ -193,11 +194,17 @@ solubis.data.Database = (function() {
 				id, sql;
 
 			var onSuccess = function(tx, rs) {
-				me.logChange(table, id, 'D', function() {
+				if (rs.rowsAffected === 0) {
 					if (typeof success == 'function') {
 						success();
 					}
-				});
+				} else {
+					me.logChange(table, id, 'D', function() {
+						if (typeof success == 'function') {
+							success();
+						}
+					});
+				}
 			};
 
 			id = object[me.primaryKey];
@@ -222,7 +229,7 @@ solubis.data.Database = (function() {
 			var onSuccess = function(tx, rs) {
 				me.logChange(table, id, 'U', function() {
 					if (typeof success == 'function') {
-						success();
+						success(object);
 					}
 				});
 			};
@@ -241,18 +248,74 @@ solubis.data.Database = (function() {
 			me.executeSQLTx(tx, sql, values, onSuccess, failure);
 		},
 
+		/**
+		 *  Read single records or all records from table
+		 *  @private
+		 *  @param {Ext.data.Model} record
+		 *  @callback {Function} callback function
+		 *  @scope {Object} scope of callback function
+		 */
+		selectObjects: function(operation, callback) {
+			var me = this;
+
+			var table = operation.table,
+				orderBy = [],
+				sql = 'SELECT * FROM ' + table,
+				where = '',
+				limit = '';
+
+			if (operation.id !== undefined) {
+				where = ' WHERE ' + me.primaryKey + ' = "' + operation.id + '" ';
+			}
+
+			if (operation.limit) {
+				limit = ' LIMIT ' + operation.limit + ' OFFSET ' + operation.start;
+			}
+
+			if (operation.sorters && operation.sorters.length > 0) {
+				sql = sql + ' ORDER BY ';
+
+				for (var i = 0; i < operation.sorters.length; i++) {
+					orderBy.push(operation.sorters[i].property + ' ' + operation.sorters[i].direction);
+				}
+
+				sql = sql + orderBy.join(',');
+			}
+
+			sql = sql + where + limit;
+
+			var onSuccess = function(tx, results) {
+				var records = [],
+					rows = results.rows,
+					length = rows.length;
+
+				for (var i = 0; i < length; i++) {
+					records.push(rows.item(i));
+				}
+
+				if (typeof callback == 'function') {
+					callback(records, table);
+				}
+			};
+
+			me.executeSQL(sql, [], onSuccess);
+		},
+
 		readLogForObject: function(id, success, failure) {
 			var me = this,
 				sql;
 
 			var onSuccess = function(tx, rs) {
-				var log;
+				var log = {
+					count: 0
+				};
 
 				if (rs.rows.length > 0) {
 					log = {
 						operation: rs.rows.item(0)['operation'],
-						id: rs.rows.item(0)['id']
-					}
+						id: rs.rows.item(0)['id'],
+						count: rs.rows.length
+					};
 				}
 
 				if (typeof success == 'function') {
@@ -260,8 +323,39 @@ solubis.data.Database = (function() {
 				}
 			};
 
-			sql = "SELECT id, operation FROM ChangeLog WHERE object_id = ?";
+			sql = "SELECT id, operation FROM " + CHANGE_LOG_TABLE + " WHERE object_id = ?";
 			me.executeSQL(sql, [id], onSuccess, failure);
+		},
+
+		logChange: function(table, id, operation, success) {
+			var me = this,
+				log = {
+				object_id: id,
+				tablename: table,
+				operation: operation,
+				timestamp: (new Date()).getTime()
+			};
+
+			if (table === CHANGE_LOG_TABLE || !changeLog) {
+				success();
+				return;
+			};
+
+			me.readLogForObject(id, function(result) {
+				if (result) {
+					log.id = result.id;
+				}
+
+				if (result && result.operation === 'I' && operation === 'U') {
+					log.operation = 'I';
+				}
+
+				if (result && result.operation === 'I' && operation === 'D') {
+					me.deleteObject(log, CHANGE_LOG_TABLE, success)
+				} else {
+					me.saveObject(log, CHANGE_LOG_TABLE, success);
+				}
+			});
 		},
 
 		/**
@@ -295,28 +389,6 @@ solubis.data.Database = (function() {
 			};
 
 			me.executeSQL('SELECT COUNT(*) FROM ' + table, [], onSuccess, failure);
-		},
-
-		logChange: function(table, id, operation, success) {
-			var me = this, 
-				log = {
-				object_id: id,
-				tablename: table,
-				operation: operation,
-				timestamp: (new Date()).getTime()
-			};
-
-			if (table === 'ChangeLog' || !changeLog) {
-				success();
-				return;
-			};
-
-			me.readLogForObject(id, function(result) {
-				if (result) {
-					log.id = result.id
-				};
-				me.saveObject(log, 'ChangeLog', success);
-			})
 		},
 
 		/**	

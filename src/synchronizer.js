@@ -181,9 +181,9 @@ solubis.data.Synchronizer = (function() {
 			var onSuccess = function(tx, rs) {
 				count--;
 				if (count === 0) {
-					
+
 					db.clearTable('ChangeLog');
-					
+
 					if (typeof callback == 'function') {
 						callback.call(scope || me, total);
 					}
@@ -191,11 +191,20 @@ solubis.data.Synchronizer = (function() {
 			};
 
 			var onDataDownloaded = function(result) {
-				for (var i = 0; i < result.tables.length; i++) {
-					count = count + result.tables[i].objects.length;
+				var tables = result.tables;
+
+				for (var tablename in tables) {
+					count = count + tables[tablename].length;
 				}
 
 				total = count;
+
+				if (total === 0) {
+					if (typeof callback == 'function') {
+						callback.call(scope || me, total);
+					}
+					return;
+				}
 
 				db.enableChangeLog(false);
 
@@ -203,22 +212,22 @@ solubis.data.Synchronizer = (function() {
 					db.transaction(function(tx) {
 						var table, object, id;
 
-						for (var i = 0; i < result.tables.length; i++) {
-							table = result.tables[i];
+						for (var tablename in tables) {
+							table = tables[tablename];
 
-							for (var j = 0; j < table.objects.length; j++) {
-								object = table.objects[j];
+							for (var j = 0; j < table.length; j++) {
+								object = table[j];
 
 								if (me.isDeletedObject(object)) {
-									db.deleteObjectTx(tx, object, table.name, onSuccess);
+									db.deleteObjectTx(tx, object, tablename, onSuccess);
 								} else {
-									db.saveObjectTx(tx, object, table.name, onSuccess);
+									db.saveObjectTx(tx, object, tablename, onSuccess);
 								}
 							}
 						}
 					});
 				} catch(e) {
-					
+
 				} finally {
 					db.enableChangeLog(true);
 				}
@@ -233,6 +242,66 @@ solubis.data.Synchronizer = (function() {
 
 		isDeletedObject: function(object) {
 			return Object.keys(object).length == 1 && object[this.primaryKey] !== undefined;
+		},
+
+		upload: function(callback, scope) {
+			var me = this,
+				count, tables = {};
+
+			var onSuccess = function(rows, table) {
+				var result = {},
+					row = {};
+				count--;
+
+				for (var prop in rows[0]) {
+					if (rows[0][prop] !== null) {
+						row[prop] = rows[0][prop];
+					}
+				}
+
+				if (tables[table] === undefined) {
+					tables[table] = [];
+				}
+
+				tables[table].push(row);
+
+				if (count === 0) {
+
+					result = {
+						errorCode: 0,
+						errorMessage: '',
+						success: true,
+						tables: tables
+					};
+
+					if (typeof callback == 'function') {
+						callback.call(scope || me, JSON.stringify(result));
+					}
+				}
+			};
+
+			db.selectObjects({
+				table: 'ChangeLog'
+			},
+			function(rows) {
+				var result, log, length = rows.length;
+
+				count = length;
+
+				for (var i = 0; i < rows.length; i++) {
+					log = rows[i];
+
+					if (log.operation === 'D') {
+						onSuccess([{id: log.object_id}], log.tablename);
+					} else {
+						db.selectObjects({
+							table: log.tablename,
+							id: log.object_id
+						},
+						onSuccess);
+					}
+				}
+			});
 		}
 	};
 

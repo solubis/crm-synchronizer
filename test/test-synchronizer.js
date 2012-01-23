@@ -54,7 +54,7 @@ asyncTest("Delete record", 1, function() {
 			id: result.id
 		},
 		'Task', function(result) {
-			ok(true, "");
+			ok(true, "Skasowanie zakończone sukcesem");
 			start();
 		});
 	});
@@ -101,17 +101,94 @@ asyncTest("Save record", 1, function() {
 	});
 });
 
-asyncTest("Check Change Log Rows", 1, function() {
+asyncTest("Check Change Log", 5, function() {
 	var me = this,
 		id, o = {
-		name: 'ChangeLog'
+		name: 'Change Log Test'
 	};
 
 	me.db.insertObject(o, 'Task', function(result) {
 		id = result.id;
 		me.db.readLogForObject(id, function(result) {
-			ok(result && result.id && result.operation === 'I');
+			equal(result.operation, 'I', "Wpis do logu o typie I");
+
+			o = {
+				id: id,
+				name: 'Updated Change Log Test'
+			};
+
+			me.db.saveObject(o, 'Task', function(result) {
+				equal(result.id, id, "Po zapisie istniejącego obiektu id powinien być taki sam");
+
+				me.db.readLogForObject(id, function(result) {
+					equal(result.count, 1, "Liczba wpisów do logu powinna być 1");
+					equal(result.operation, 'I', "Wpis do logu o typie I");
+
+					me.db.deleteObject(o, 'Task', function(result) {
+						me.db.readLogForObject(id, function(result) {
+							equal(result.count, 0, "Liczba wpisów do logu powinna być 0");
+
+							start();
+						})
+					});
+				})
+			});
+		})
+	});
+});
+
+asyncTest("Delete record downloaded form server", 2, function() {
+	var me = this,
+		o = {
+		id: "8ADDD733-DE5F-E011-9845-444553544202"
+	};
+
+	me.db.deleteObject(o, 'Task', function(result) {
+		me.db.readLogForObject(o.id, function(result) {
+			equal(result.count, 1, "Liczba wpisów do logu powinna być 1");
+			equal(result.operation, 'D', "Wpis do logu o typie D");
 			start();
 		})
+	});
+});
+
+asyncTest("Select record by ID", 1, function() {
+	var me = this;
+
+	me.db.insertObject({
+		name: 'Task Name'
+	},
+	'Task', function(result) {
+		me.db.selectObjects({
+			table: 'Task',
+			id: result.id
+		},
+		function(result) {
+			equal(result.length, 1, "Liczba rekordów powinna być 1");
+			start();
+		});
+	});
+});
+
+asyncTest("Select records from log", 1, function() {
+	var me = this;
+
+	me.db.selectObjects({
+		table: 'ChangeLog'
+	},
+	function(result) {
+		equal(result.length, 6, "Liczba rekordów");
+		start();
+	});
+});
+
+asyncTest("Upload changed records", 1, function() {
+	var me = this;
+
+	me.sync.upload(
+	function(result) {
+		ok(result, "Liczba rekordów");
+		console.debug(result);
+		start();
 	});
 });

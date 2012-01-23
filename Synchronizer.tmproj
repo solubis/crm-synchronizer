@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>src/synchronizer.js</string>
+	<string>test/test-synchronizer.js</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -56,23 +56,39 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>21</integer>
+				<integer>24</integer>
 				<key>line</key>
-				<integer>8</integer>
+				<integer>7</integer>
 			</dict>
+			<key>columnSelection</key>
+			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>60</integer>
+				<key>line</key>
+				<integer>7</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>24</integer>
+				<key>line</key>
+				<integer>7</integer>
+			</dict>
 		</dict>
 		<key>db/main.sql</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>2</integer>
+				<integer>12</integer>
 				<key>line</key>
-				<integer>85</integer>
+				<integer>91</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -98,14 +114,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>7</integer>
+				<integer>6</integer>
 				<key>line</key>
-				<integer>93</integer>
+				<integer>199</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>0</integer>
+			<integer>163</integer>
 		</dict>
 		<key>src/models.js</key>
 		<dict>
@@ -126,35 +142,51 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>77</integer>
+				<integer>3</integer>
 				<key>line</key>
-				<integer>57</integer>
+				<integer>266</integer>
 			</dict>
+			<key>columnSelection</key>
+			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>385</integer>
+			<integer>234</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>159</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>3</integer>
+				<key>line</key>
+				<integer>266</integer>
+			</dict>
 		</dict>
 		<key>src/synchronizer.js</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>29</integer>
+				<integer>37</integer>
 				<key>line</key>
-				<integer>208</integer>
+				<integer>294</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>186</integer>
+			<integer>244</integer>
 		</dict>
 		<key>test/index.html</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>72</integer>
+				<integer>7</integer>
 				<key>line</key>
 				<integer>19</integer>
 			</dict>
@@ -168,14 +200,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>72</integer>
+				<integer>43</integer>
 				<key>line</key>
-				<integer>34</integer>
+				<integer>142</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>0</integer>
+			<integer>116</integer>
 		</dict>
 	</dict>
 	<key>openDocuments</key>
@@ -192,6 +224,6 @@
 	<key>showFileHierarchyDrawer</key>
 	<true/>
 	<key>windowFrame</key>
-	<string>{{-306, 803}, {1710, 1077}}</string>
+	<string>{{752, 818}, {862, 1062}}</string>
 </dict>
 </plist>
